@@ -34,9 +34,9 @@ func TestTryValidateModeSwitch_WithDefaults(t *testing.T) {
 		})
 	}
 
-	t.Run("custom_rejected", func(t *testing.T) {
-		if err := TryValidateModeSwitch(r, ModeCustom); err == nil {
-			t.Fatal("expected error for custom mode")
+	t.Run("custom_with_placeholder", func(t *testing.T) {
+		if err := TryValidateModeSwitch(r, ModeCustom); err != nil {
+			t.Fatalf("TryValidateModeSwitch custom: %v", err)
 		}
 	})
 }

@@ -53,7 +53,7 @@ func Build(ctx context.Context, root *agentconfig.Root) (adk.Agent, error) {
 	case agentconfig.ModePlanExecute:
 		return buildPlanExecute(ctx, root, cm, bundle, extraMW)
 	case agentconfig.ModeCustom:
-		return nil, fmt.Errorf("agent: mode custom is not wired in brook; extend internal/core/agent")
+		return buildCustom(ctx, root, cm, bundle, extraMW)
 	default:
 		return nil, fmt.Errorf("agent: unknown mode %q", root.Agent.Mode)
 	}

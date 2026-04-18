@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hippowc/brook/internal/launcher"
@@ -25,8 +24,7 @@ func Run(ctx context.Context, rt *launcher.Runtime, store SessionStore) error {
 		addr = ":8787"
 	}
 
-	var mu sync.Mutex
-	h := &chatHandler{rt: rt, store: store, spec: spec, mu: &mu}
+	h := &chatHandler{rt: rt, store: store, spec: spec}
 
 	maxBody := int64(spec.MaxRequestBodyBytes)
 	if maxBody <= 0 {
@@ -73,7 +71,7 @@ func Run(ctx context.Context, rt *launcher.Runtime, store SessionStore) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("brook-gateway listening", "addr", addr)
+		slog.Info("brook gateway listening", "addr", addr)
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			errCh <- err

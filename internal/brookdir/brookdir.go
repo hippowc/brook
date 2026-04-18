@@ -19,6 +19,7 @@ const (
 	CheckpointName      = "checkpoints"
 	ConversationsName   = "conversations"
 	GatewaySessionsName = "gateway/sessions"
+	CustomBundleName    = "custom" // Starlark 编排与 agents.yaml 等用户 bundle（见 launcher 创建模式工具）
 	SessionName         = "session.json"
 	LogFileName         = "brook.log"
 	CurrentConversation = "current_conversation"
@@ -97,7 +98,16 @@ func WriteCurrentConversationID(id string) error {
 	return os.WriteFile(p, []byte(strings.TrimSpace(id)+"\n"), 0o600)
 }
 
-// GatewaySessionsDir 返回 ~/.brook/gateway/sessions（brook-gateway 按用户隔离的 session KV 文件目录）。
+// CustomDir 返回 ~/.brook/custom（custom 模式编排文件默认存放目录）。
+func CustomDir() (string, error) {
+	r, err := Root()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(r, CustomBundleName), nil
+}
+
+// GatewaySessionsDir 返回 ~/.brook/gateway/sessions（`brook gateway` 按用户隔离的 session KV 文件目录）。
 func GatewaySessionsDir() (string, error) {
 	r, err := Root()
 	if err != nil {
@@ -126,7 +136,8 @@ func Ensure() (string, error) {
 	chk := filepath.Join(root, CheckpointName)
 	conv := filepath.Join(root, ConversationsName)
 	gwSessDir := filepath.Join(root, GatewaySessionsName)
-	for _, d := range []string{root, workspace, chk, conv, gwSessDir} {
+	customDir := filepath.Join(root, CustomBundleName)
+	for _, d := range []string{root, workspace, chk, conv, gwSessDir, customDir} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return "", fmt.Errorf("brookdir: mkdir %s: %w", d, err)
 		}

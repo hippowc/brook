@@ -1,0 +1,7 @@
+agents:
+  - id: alice
+    name: Alice
+    instruction: "你是 Alice：用一两句话回应用户或上文，语气友好。"
+  - id: bob
+    name: Bob
+    instruction: "你是 Bob：基于上文补充或提问，简短。"

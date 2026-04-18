@@ -25,11 +25,11 @@ type Root struct {
 	// A2UI 将 Agent 事件流映射为 A2UI 兼容的 JSONL（见 pkg/a2ui）。
 	A2UI A2UISpec `yaml:"a2ui,omitempty" json:"a2ui,omitempty"`
 
-	// Gateway 由 brook-gateway 使用：HTTP 接入外部消息并与同一套 Agent 配置集成。
+	// Gateway 由 `brook gateway` 使用：HTTP 接入外部消息并与同一套 Agent 配置集成。
 	Gateway GatewaySpec `yaml:"gateway,omitempty" json:"gateway,omitempty"`
 }
 
-// GatewaySpec 控制 brook-gateway：监听地址、鉴权、限流、按外部用户隔离的会话存储。
+// GatewaySpec 控制 `brook gateway`：监听地址、鉴权、限流、按外部用户隔离的会话存储。
 type GatewaySpec struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 
@@ -123,6 +123,13 @@ type AgentSpec struct {
 
 	// ModeConfig 按 Mode 附加的结构化配置（多 agent、deep、plan-execute 等）。
 	ModeConfig *ModeConfig `yaml:"mode_config,omitempty" json:"mode_config,omitempty"`
+
+	// CustomScript 在 agent.mode=custom 时必填：Starlark 编排入口（.star），路径相对 agent.yaml 所在目录或绝对路径，亦可用 @ 前缀。
+	CustomScript string `yaml:"custom_script,omitempty" json:"custom_script,omitempty"`
+	// CustomAgentsFile 子 Agent 列表 YAML；空则使用与 CustomScript 同目录下 agents.yaml。
+	CustomAgentsFile string `yaml:"custom_agents_file,omitempty" json:"custom_agents_file,omitempty"`
+	// CustomParams 传入 Starlark 全局 cfg（冻结 dict）。
+	CustomParams map[string]any `yaml:"custom_params,omitempty" json:"custom_params,omitempty"`
 }
 
 // AgentMode 与 eino ADK 提供的组合 primitive 对齐。

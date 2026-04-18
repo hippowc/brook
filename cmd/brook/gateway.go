@@ -1,4 +1,3 @@
-// Brook-gateway：基于与 brook 相同的 agent 配置，提供 HTTP 接入外部消息。
 package main
 
 import (
@@ -15,9 +14,14 @@ import (
 	"github.com/hippowc/brook/internal/launcher"
 )
 
-func main() {
-	cfgPath := flag.String("config", "", "agent 配置文件路径，默认 ~/.brook/agent.yaml")
-	flag.Parse()
+// runGateway 启动 HTTP 网关。
+func runGateway(args []string) error {
+	fs := flag.NewFlagSet("brook gateway", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	cfgPath := fs.String("config", "", "agent 配置文件路径，默认 ~/.brook/agent.yaml")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 	path := *cfgPath
@@ -26,34 +30,34 @@ func main() {
 		path, err = brookdir.Ensure()
 		if err != nil {
 			slog.Error("brookdir", "err", err)
-			os.Exit(1)
+			return err
 		}
 	}
 
 	rt, err := launcher.Load(ctx, path)
 	if err != nil {
 		slog.Error("load", "err", err)
-		os.Exit(1)
+		return err
 	}
 	if !rt.Root.Gateway.Enabled {
 		slog.Error("gateway disabled: set gateway.enabled: true in agent config")
-		os.Exit(1)
+		return errors.New("gateway disabled")
 	}
 
 	store, err := gateway.NewSessionStore(&rt.Root.Gateway)
 	if err != nil {
 		slog.Error("session store", "err", err)
-		os.Exit(1)
+		return err
 	}
 
 	logPath, err := brookdir.LogFile()
 	if err != nil {
 		slog.Error("log path", "err", err)
-		os.Exit(1)
+		return err
 	}
 	if err := launcher.ApplyObservability(rt.Root, logPath, false); err != nil {
 		slog.Error("logging", "err", err)
-		os.Exit(1)
+		return err
 	}
 
 	runCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -61,9 +65,10 @@ func main() {
 
 	if err := gateway.Run(runCtx, rt, store); err != nil {
 		if errors.Is(err, context.Canceled) {
-			os.Exit(0)
+			return nil
 		}
 		slog.Error("gateway", "err", err)
-		os.Exit(1)
+		return err
 	}
+	return nil
 }

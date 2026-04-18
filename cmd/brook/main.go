@@ -1,142 +1,91 @@
-// Brook：基于 CloudWeGo Eino 的可配置 Agent 入口。
+// Brook：统一入口。无子命令且非「CLI 单次运行」启发式时，默认启动 TUI。
 package main
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
-
-	"github.com/cloudwego/eino/adk"
-
-	"github.com/hippowc/brook/internal/brookdir"
-	"github.com/hippowc/brook/internal/launcher"
-	"github.com/hippowc/brook/pkg/a2ui"
 )
 
 func main() {
-	cfgPath := flag.String("config", "", "agent 配置文件路径，默认 ~/.brook/agent.yaml")
-	query := flag.String("query", "", "用户输入（非空则非交互运行一次）")
-	cpID := flag.String("checkpoint-id", "", "中断恢复用的 checkpoint id")
-	resumeInput := flag.String("resume-input", "", "Resume 时写入 session 的 resume_user 字段")
-	a2uiOut := flag.Bool("a2ui", false, "将事件以 A2UI JSON Lines 输出到 stdout")
-	flag.Parse()
-
-	ctx := context.Background()
-	path := *cfgPath
-	if path == "" {
-		var err error
-		path, err = brookdir.Ensure()
-		if err != nil {
-			slog.Error("brookdir", "err", err)
+	args := os.Args[1:]
+	if len(args) == 0 {
+		runTUI(nil)
+		return
+	}
+	switch args[0] {
+	case "help", "-h", "--help":
+		printUsage(os.Stdout)
+		return
+	case "cli", "run":
+		if err := runCLI(args[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
-	}
-	rt, err := launcher.Load(ctx, path)
-	if err != nil {
-		slog.Error("load", "err", err)
-		os.Exit(1)
-	}
-	logPath, err := brookdir.LogFile()
-	if err != nil {
-		slog.Error("log path", "err", err)
-		os.Exit(1)
-	}
-	if err := launcher.ApplyObservability(rt.Root, logPath, false); err != nil {
-		slog.Error("logging", "err", err)
-		os.Exit(1)
-	}
-	root := rt.Root
-	r := rt.Runner
-	sessKV := rt.Session
-
-	userText := strings.TrimSpace(*query)
-	if userText == "" {
-		userText = strings.TrimSpace(root.Agent.UserPrompt)
-	}
-	if userText == "" {
-		userText = "你好，简单介绍一下你能做什么。"
-	}
-
-	var iter *adk.AsyncIterator[*adk.AgentEvent]
-	var snapSession func() map[string]any
-	if *cpID != "" && *resumeInput != "" {
-		sessKV["resume_user"] = *resumeInput
-		cb, snap := launcher.SessionValuesSyncHandler()
-		snapSession = snap
-		iter, err = r.Resume(ctx, *cpID, adk.WithSessionValues(sessKV), adk.WithCallbacks(cb))
-		if err != nil {
-			slog.Error("resume", "err", err)
+		return
+	case "gateway":
+		if err := runGateway(args[1:]); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
-	} else {
-		cb, snap := launcher.SessionValuesSyncHandler()
-		snapSession = snap
-		opts := []adk.AgentRunOption{adk.WithSessionValues(sessKV), adk.WithCallbacks(cb)}
-		if *cpID != "" {
-			opts = append(opts, adk.WithCheckPointID(*cpID))
-		}
-		iter = r.Query(ctx, userText, opts...)
+		return
+	case "tui":
+		runTUI(args[1:])
+		return
 	}
-
-	if *a2uiOut || root.A2UI.Enabled {
-		ver := root.A2UI.Version
-		if ver == "" {
-			ver = "0.8"
-		}
-		if err := a2ui.WriteAgentEvents(os.Stdout, iter, ver); err != nil {
-			slog.Error("a2ui", "err", err)
+	// 与旧版 brook CLI 兼容：带 -query / checkpoint / a2ui 等时走非交互 CLI
+	if wantsLegacyCLI(args) {
+		if err := runCLI(args); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
 			os.Exit(1)
 		}
-	} else {
-		for {
-			ev, ok := iter.Next()
-			if !ok {
-				break
-			}
-			if ev == nil {
-				continue
-			}
-			if ev.Err != nil {
-				slog.Error("agent event error", "err", ev.Err)
-				continue
-			}
-			if ev.Output != nil && ev.Output.MessageOutput != nil {
-				printMessage(ev.Output.MessageOutput)
-			}
-			if ev.Action != nil && ev.Action.Interrupted != nil {
-				fmt.Fprintf(os.Stderr, "[interrupt] %#v\n", ev.Action.Interrupted.Data)
-			}
-		}
+		return
 	}
-
-	if snapSession != nil {
-		launcher.MergeSessionValues(sessKV, snapSession())
+	if strings.HasPrefix(args[0], "-") {
+		runTUI(args)
+		return
 	}
-	if err := rt.SaveSession(); err != nil {
-		slog.Error("save session", "err", err)
-		os.Exit(1)
-	}
+	fmt.Fprintf(os.Stderr, "未知子命令 %q\n\n", args[0])
+	printUsage(os.Stderr)
+	os.Exit(1)
 }
 
-func printMessage(mv *adk.MessageVariant) {
-	if mv == nil {
-		return
-	}
-	if mv.IsStreaming && mv.MessageStream != nil {
-		for {
-			msg, err := mv.MessageStream.Recv()
-			if err != nil {
-				break
-			}
-			fmt.Print(msg.Content)
+// wantsLegacyCLI 判断是否应按旧版「brook」单次查询方式解析（无需显式子命令 cli）。
+func wantsLegacyCLI(args []string) bool {
+	for _, a := range args {
+		switch {
+		case a == "-query" || a == "--query":
+			return true
+		case strings.HasPrefix(a, "-query=") || strings.HasPrefix(a, "--query="):
+			return true
+		case a == "-a2ui" || a == "--a2ui":
+			return true
+		case a == "-checkpoint-id" || strings.HasPrefix(a, "-checkpoint-id="):
+			return true
+		case a == "-resume-input" || strings.HasPrefix(a, "-resume-input=") || strings.HasPrefix(a, "--resume-input="):
+			return true
 		}
-		fmt.Println()
-		return
 	}
-	if mv.Message != nil {
-		fmt.Println(mv.Message.Content)
-	}
+	return false
+}
+
+func printUsage(w *os.File) {
+	fmt.Fprintf(w, `Brook — Eino ADK 可配置 Agent
+
+用法:
+  brook                    启动交互式 TUI（默认）
+  brook [tui 选项...]      同上，例如 -config、-conversation、-new
+  brook cli [选项...]      单次查询（非交互），同旧版 brook 命令行
+  brook gateway [选项...]  HTTP 网关（需 agent.yaml 中 gateway.enabled: true）
+
+与旧版兼容:
+  brook -query "你好"      等价于 brook cli -query "你好"
+
+子命令:
+  tui       显式启动 TUI
+  cli, run  单次查询
+  gateway   HTTP 网关
+  help      显示本说明
+
+`)
 }

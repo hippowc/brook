@@ -27,6 +27,13 @@ func PatchAgentModeInYAMLFile(path string, mode AgentMode) error {
 		return fmt.Errorf("agentconfig: mode_config for %q: %w", mode, err)
 	}
 	agent["mode_config"] = mcMap
+	if mode == ModeCustom {
+		// 不写入占位路径；由用户在 agent.yaml 填写 custom_script，或在 TUI「创建」模式中生成。
+	} else {
+		delete(agent, "custom_script")
+		delete(agent, "custom_agents_file")
+		delete(agent, "custom_params")
+	}
 	doc["agent"] = agent
 	out, err := yaml.Marshal(doc)
 	if err != nil {
@@ -43,9 +50,6 @@ func PatchAgentModeInYAMLFile(path string, mode AgentMode) error {
 func TryValidateModeSwitch(r *Root, mode AgentMode) error {
 	if r == nil {
 		return fmt.Errorf("agentconfig: nil root")
-	}
-	if mode == ModeCustom {
-		return fmt.Errorf("agentconfig: mode %q 尚未在 Brook 中实现，无法切换；请扩展 internal/core/agent", mode)
 	}
 	cp := *r
 	cp.Agent.Mode = mode

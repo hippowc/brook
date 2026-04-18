@@ -24,7 +24,34 @@ func ExpandAtFileRefs(r *Root, configDir string) error {
 	if err != nil {
 		return err
 	}
+	r.Agent.CustomScript, err = resolveBundlePath(r.Agent.CustomScript, configDir, "agent.custom_script")
+	if err != nil {
+		return err
+	}
+	r.Agent.CustomAgentsFile, err = resolveBundlePath(r.Agent.CustomAgentsFile, configDir, "agent.custom_agents_file")
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+// resolveBundlePath 将 @path 或相对路径解析为绝对路径（不读取文件内容）；空字符串保持不变。
+func resolveBundlePath(s, configDir, field string) (string, error) {
+	raw := strings.TrimSpace(s)
+	if raw == "" {
+		return "", nil
+	}
+	path := raw
+	if strings.HasPrefix(raw, "@") {
+		path = strings.TrimSpace(raw[1:])
+		if path == "" {
+			return "", fmt.Errorf("agentconfig: %s: empty path after @", field)
+		}
+	}
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(configDir, path)
+	}
+	return filepath.Clean(path), nil
 }
 
 func expandAtField(s, configDir, field string) (string, error) {

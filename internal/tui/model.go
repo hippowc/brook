@@ -82,6 +82,12 @@ type Model struct {
 	// 多轮对话持久化（~/.brook/conversations/<uuid>.json）
 	convID       string
 	convFilePath string
+
+	// agent.mode=custom 时：false=使用 Starlark 主编排；true=LLM 创建助手（独立 Runner，会话不落主 SessionValues）。
+	customBuild  bool
+	buildRunner  *adk.Runner
+	// customEnterMetaShown 避免多次 reload 重复插入「已进入创建模式」提示。
+	customEnterMetaShown bool
 }
 
 const maxToolArgRunes = 8000
@@ -123,8 +129,10 @@ func New(rt *launcher.Runtime, cfgPath, convID string) *Model {
 	if err == nil {
 		mo.convFilePath = cfp
 	}
+	mo.refreshInputPlaceholder()
 	mo.refreshMetaLine()
 	mo.loadConversationFile()
+	mo.bootstrapCustomModeIfNeeded()
 	// 必须在返回的模型上同步 Focus：Init 里若用值接收器调用 Focus 只会改副本，会导致输入区不聚焦。
 	_ = mo.ti.Focus()
 	return mo
@@ -137,6 +145,25 @@ func (m *Model) refreshMetaLine() {
 	}
 	m.metaLine = fmt.Sprintf("%s · %s/%s · %s", m.cfgPath,
 		m.rt.Root.Models.Active.Provider, m.rt.Root.Models.Active.Model, short)
+	if m.rt.Root.Agent.Mode == agentconfig.ModeCustom {
+		if m.customBuild {
+			m.metaLine += " · 定制·创建"
+		} else {
+			m.metaLine += " · 定制·使用"
+		}
+	}
+}
+
+func (m *Model) refreshInputPlaceholder() {
+	if m.rt.Root.Agent.Mode == agentconfig.ModeCustom {
+		if m.customBuild {
+			m.ti.Placeholder = "「创建」：描述编排需求…  /custom run 切回使用模式 · /help"
+			return
+		}
+		m.ti.Placeholder = "「使用」：对话走 Starlark…  /custom build 创建助手 · /help"
+		return
+	}
+	m.ti.Placeholder = "输入消息…  /help  ·  /agent mode  ·  /config  ·  /new  ·  Tab 补全"
 }
 
 func (m *Model) loadConversationFile() {
@@ -158,6 +185,50 @@ func (m *Model) loadConversationFile() {
 	for _, ct := range conversation.MessagesToTurns(f.MessagesPointers()) {
 		m.turns = append(m.turns, convTurnToUI(ct))
 	}
+}
+
+// bootstrapCustomModeIfNeeded：custom 且未配置可用脚本时自动进入「创建」模式并提示一次。
+func (m *Model) bootstrapCustomModeIfNeeded() {
+	if m.rt.Root.Agent.Mode != agentconfig.ModeCustom {
+		return
+	}
+	p := strings.TrimSpace(m.rt.Root.Agent.CustomScript)
+	if p != "" {
+		_, statErr := os.Stat(p)
+		if statErr == nil {
+			m.customBuild = false
+			m.refreshInputPlaceholder()
+			m.refreshMetaLine()
+			return
+		}
+		if !os.IsNotExist(statErr) {
+			return
+		}
+	}
+	if m.customBuild && m.buildRunner != nil {
+		m.refreshInputPlaceholder()
+		m.refreshMetaLine()
+		return
+	}
+	m.customBuild = true
+	ctx := context.Background()
+	br, err := launcher.CustomBuildRunner(ctx, m.rt.Root, m.cfgPath)
+	if err != nil {
+		if !m.customEnterMetaShown {
+			m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("创建模式: %v", err)})
+			m.customEnterMetaShown = true
+		}
+		m.refreshInputPlaceholder()
+		m.refreshMetaLine()
+		return
+	}
+	m.buildRunner = br
+	if !m.customEnterMetaShown {
+		m.turns = append(m.turns, turn{role: "meta", text: "当前为 custom 模式：尚未配置可用的 custom_script 或文件不存在。已自动进入「创建」模式；编排就绪后输入 /custom run 切回使用模式。"})
+		m.customEnterMetaShown = true
+	}
+	m.refreshInputPlaceholder()
+	m.refreshMetaLine()
 }
 
 func convTurnToUI(ct conversation.Turn) turn {
@@ -447,6 +518,10 @@ func (m *Model) submitInput() (tea.Model, tea.Cmd) {
 			return m.handleAgentCommand(strings.TrimSpace(raw))
 		}
 		first := strings.ToLower(strings.TrimSpace(strings.SplitN(raw, " ", 2)[0]))
+		if first == "/custom" {
+			m.ti.Reset()
+			return m.handleCustomCommand(strings.TrimSpace(raw))
+		}
 		if first == "/help" {
 			m.ti.Reset()
 			m.turns = append(m.turns, turn{role: "meta", text: TUIHelpText})
@@ -469,7 +544,7 @@ func (m *Model) submitInput() (tea.Model, tea.Cmd) {
 func (m *Model) handleAgentCommand(raw string) (tea.Model, tea.Cmd) {
 	fields := strings.Fields(raw)
 	if len(fields) < 3 || !strings.EqualFold(fields[1], "mode") {
-		m.turns = append(m.turns, turn{role: "meta", text: "用法: /agent mode <react|deep|sequential|parallel|loop|supervisor|plan_execute|custom>"})
+		m.turns = append(m.turns, turn{role: "meta", text: "用法: /agent mode <react|deep|sequential|parallel|loop|supervisor|plan_execute|custom>（custom 需配置 custom_script）"})
 		m.setViewportMain(m.transcript())
 		return m, m.ti.Focus()
 	}
@@ -502,9 +577,76 @@ func (m *Model) handleAgentCommand(raw string) (tea.Model, tea.Cmd) {
 	m.turns = append(m.turns, turn{role: "meta", text: meta})
 	m.rt = rt
 	m.agentName = rt.Root.Agent.Name
+	m.buildRunner = nil
+	m.customBuild = false
+	m.customEnterMetaShown = false
+	m.refreshInputPlaceholder()
+	m.bootstrapCustomModeIfNeeded()
 	m.refreshMetaLine()
 	m.setViewportMain(m.transcript())
 	return m, m.ti.Focus()
+}
+
+func (m *Model) handleCustomCommand(raw string) (tea.Model, tea.Cmd) {
+	fields := strings.Fields(raw)
+	if len(fields) < 2 {
+		m.turns = append(m.turns, turn{role: "meta", text: `custom：/custom build — LLM 辅助编写编排；/custom run — 使用 Starlark 编排对话（默认）`})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	if m.rt.Root.Agent.Mode != agentconfig.ModeCustom {
+		m.turns = append(m.turns, turn{role: "error", text: "仅当 agent.mode=custom 时可用 /custom"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	switch strings.ToLower(fields[1]) {
+	case "build":
+		ctx := context.Background()
+		br, err := launcher.CustomBuildRunner(ctx, m.rt.Root, m.cfgPath)
+		if err != nil {
+			m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("创建助手: %v", err)})
+			m.setViewportMain(m.transcript())
+			return m, m.ti.Focus()
+		}
+		m.buildRunner = br
+		m.customBuild = true
+		m.refreshInputPlaceholder()
+		m.refreshMetaLine()
+		m.turns = append(m.turns, turn{role: "meta", text: "已进入「创建」模式：向助手描述你想要的编排（Starlark / agents.yaml）。输入 /custom run 回到「使用」模式。"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	case "run", "use":
+		ctx := context.Background()
+		rt, err := launcher.Load(ctx, m.cfgPath)
+		if err != nil {
+			m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("重新加载配置失败: %v", err)})
+			m.setViewportMain(m.transcript())
+			return m, m.ti.Focus()
+		}
+		logPath, lerr := brookdir.LogFile()
+		if lerr == nil {
+			_ = launcher.ApplyObservability(rt.Root, logPath, true)
+		}
+		m.rt = rt
+		m.agentName = rt.Root.Agent.Name
+		m.buildRunner = nil
+		m.customBuild = false
+		m.customEnterMetaShown = false
+		m.refreshInputPlaceholder()
+		m.refreshMetaLine()
+		m.bootstrapCustomModeIfNeeded()
+		if m.customBuild {
+			m.turns = append(m.turns, turn{role: "meta", text: "配置已从磁盘重新加载，但 custom_script 仍不可用或文件不存在，仍停留在「创建」模式；请检查路径或继续用助手落盘。"})
+		} else {
+			m.turns = append(m.turns, turn{role: "meta", text: "已回到「使用」模式并已从磁盘重新加载配置；对话将按 custom_script 中 Starlark 编排执行。"})
+		}
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	default:
+		m.turns = append(m.turns, turn{role: "meta", text: "用法: /custom build | /custom run"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
 }
 
 func (m *Model) startNewConversation() (tea.Model, tea.Cmd) {
@@ -617,6 +759,11 @@ func (m *Model) saveConfigAndReload() (tea.Model, tea.Cmd) {
 	}
 	m.rt = rt
 	m.agentName = rt.Root.Agent.Name
+	m.buildRunner = nil
+	m.customBuild = false
+	m.customEnterMetaShown = false
+	m.refreshInputPlaceholder()
+	m.bootstrapCustomModeIfNeeded()
 	m.refreshMetaLine()
 	m.turns = append(m.turns, turn{role: "meta", text: doneMsg})
 	m.setViewportMain(m.transcript())
@@ -680,7 +827,18 @@ func (m *Model) startRun(user string) (tea.Model, tea.Cmd) {
 
 	r := m.rt.Runner
 	sess := m.rt.Session
+	if m.rt.Root.Agent.Mode == agentconfig.ModeCustom && m.customBuild && m.buildRunner != nil {
+		r = m.buildRunner
+		sess = map[string]any{}
+	}
 	cb, snapSession := launcher.SessionValuesSyncHandler()
+	skipSessMerge := m.rt.Root.Agent.Mode == agentconfig.ModeCustom && m.customBuild
+	snapForPersist := func() map[string]any {
+		if skipSessMerge {
+			return nil
+		}
+		return snapSession()
+	}
 
 	maxCtx := m.rt.Root.Memory.MaxContextMessages
 	hist := conversation.TurnsToMessages(m.historyTurnsForRun(), maxCtx)
@@ -692,7 +850,7 @@ func (m *Model) startRun(user string) (tea.Model, tea.Cmd) {
 		defer func() {
 			done := streamMsg{runID: rid, done: true}
 			done.cancelled = errors.Is(ctx.Err(), context.Canceled)
-			done.session = snapSession()
+			done.session = snapForPersist()
 			m.ch <- done
 		}()
 
@@ -712,7 +870,7 @@ func (m *Model) startRun(user string) (tea.Model, tea.Cmd) {
 				if errors.Is(ev.Err, context.Canceled) {
 					return
 				}
-				m.ch <- streamMsg{runID: rid, err: ev.Err, session: snapSession()}
+				m.ch <- streamMsg{runID: rid, err: ev.Err, session: snapForPersist()}
 				return
 			}
 			if ev.Output == nil || ev.Output.MessageOutput == nil {
@@ -724,7 +882,7 @@ func (m *Model) startRun(user string) (tea.Model, tea.Cmd) {
 					if errors.Is(err, context.Canceled) {
 						return
 					}
-					m.ch <- streamMsg{runID: rid, err: err, session: snapSession()}
+					m.ch <- streamMsg{runID: rid, err: err, session: snapForPersist()}
 					return
 				}
 				continue
@@ -733,7 +891,7 @@ func (m *Model) startRun(user string) (tea.Model, tea.Cmd) {
 				if errors.Is(err, context.Canceled) {
 					return
 				}
-				m.ch <- streamMsg{runID: rid, err: err, session: snapSession()}
+				m.ch <- streamMsg{runID: rid, err: err, session: snapForPersist()}
 				return
 			}
 		}

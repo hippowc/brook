@@ -134,6 +134,8 @@ func (a *AgentSpec) validateMode() error {
 		if strings.TrimSpace(pe.PlannerName) == "" || strings.TrimSpace(pe.ExecutorName) == "" || strings.TrimSpace(pe.ReplannerName) == "" {
 			return fmt.Errorf("agentconfig: plan_execute planner, executor, replanner names are required")
 		}
+	case ModeCustom:
+		// custom_script 可空：未配置时由运行时占位 Agent / TUI 创建模式处理。
 	}
 	return nil
 }

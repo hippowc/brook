@@ -4,8 +4,7 @@
 # 环境变量：
 #   VERSION=v0.1.0          release 标签；不设置则请求 GitHub API 取 latest
 #   INSTALL_DIR=...         安装目录（默认 /usr/local/bin 或可写则用 ~/.local/bin）
-#   BROOK_BINARIES=...      逗号分隔，要安装的组件名；默认 brook,brook-tui
-#                           可选：brook | brook-tui | brook-gateway（可任意组合）
+#   BROOK_BINARIES=...      逗号分隔，要安装的组件名；默认仅 brook（统一二进制，内含 tui/cli/gateway 子命令）
 set -euo pipefail
 
 REPO="hippowc/brook"
@@ -107,7 +106,7 @@ main() {
   dest="$(pick_dest)"
   export PATH="${dest}:${PATH}"
 
-  local csv="${BROOK_BINARIES:-brook,brook-tui}"
+  local csv="${BROOK_BINARIES:-brook}"
   csv="$(echo "$csv" | tr -d '[:space:]')"
 
   plat="$(detect_plat)"

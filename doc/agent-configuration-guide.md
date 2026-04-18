@@ -98,7 +98,7 @@ agent:
 | **`agent.tools.filesystem`** | 本地/内存文件系统工具；`local.strict_commands: true` 时 shell 仅白名单命令（见 `internal/core/fs/backend.go`） |
 | **`models`** | `providers` + `active`；密钥用 `api_key_env` |
 | **`memory`** | Session 落盘、`output_key`、`max_context_messages`（TUI 裁剪上下文条数） |
-| **`interrupt`** | Checkpoint 与 `brook-tui` / CLI 恢复相关 |
+| **`interrupt`** | Checkpoint 与 TUI / `brook cli` 恢复相关 |
 | **`a2ui`** | JSONL 流式 UI 输出 |
 
 ---
@@ -119,9 +119,9 @@ agent:
 
 ---
 
-## `gateway`（`brook-gateway`）
+## `gateway`（`brook gateway`）
 
-由 **`brook-gateway`** 读取与 `brook` / `brook-tui` **相同的** `agent.yaml`。将 **`gateway.enabled`** 设为 **`true`** 后启动进程即可监听 HTTP。
+由 **`brook gateway`** 子命令读取与 TUI / **`brook cli`** **相同的** `agent.yaml`。将 **`gateway.enabled`** 设为 **`true`** 后启动进程即可监听 HTTP。
 
 | 能力 | 说明 |
 |------|------|

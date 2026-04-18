@@ -1,4 +1,3 @@
-// Brook TUI：类 Claude Code 的终端交互界面。
 package main
 
 import (
@@ -17,11 +16,20 @@ import (
 	"github.com/hippowc/brook/internal/tui"
 )
 
-func main() {
-	cfg := flag.String("config", "", "agent 配置文件路径，默认 ~/.brook/agent.yaml")
-	convFlag := flag.String("conversation", "", "会话 UUID；默认读取 ~/.brook/current_conversation，若无则新建")
-	newConv := flag.Bool("new", false, "忽略 current_conversation，强制新建会话 UUID")
-	flag.Parse()
+// runTUI 启动 Bubble Tea 交互界面（默认子命令）。
+func runTUI(args []string) {
+	fs := flag.NewFlagSet("brook tui", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	cfg := fs.String("config", "", "agent 配置文件路径，默认 ~/.brook/agent.yaml")
+	convFlag := fs.String("conversation", "", "会话 UUID；默认读取 ~/.brook/current_conversation，若无则新建")
+	newConv := fs.Bool("new", false, "忽略 current_conversation，强制新建会话 UUID")
+	if args == nil {
+		args = []string{}
+	}
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "brook tui: %v\n", err)
+		os.Exit(1)
+	}
 
 	ctx := context.Background()
 	cfgPath := *cfg
@@ -53,7 +61,8 @@ func main() {
 	}
 
 	m := tui.New(rt, cfgPath, convID)
-	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	// 不使用 WithMouseCellMotion：避免终端启用鼠标报告协议后无法顺畅用光标拖选文本（原生选区被应用抢占）。
+	p := tea.NewProgram(m, tea.WithAltScreen())
 	final, err := p.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tui: %v\n", err)

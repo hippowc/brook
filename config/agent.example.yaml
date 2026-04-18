@@ -71,7 +71,7 @@ a2ui:
   enabled: false
   version: "0.8"
 
-# brook-gateway：HTTP 接入；启用后运行 brook-gateway（与 brook / brook-tui 共用本配置）
+# gateway：HTTP 接入；启用后运行 `brook gateway`（与 TUI / brook cli 共用本配置）
 gateway:
   enabled: false
   listen: ":8787"

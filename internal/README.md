@@ -10,4 +10,4 @@
 | `internal/extension/middleware` | **ChatModelAgentMiddleware** 注册表（按名称扩展） |
 | `pkg/agentconfig` | 配置模型与校验 |
 | `pkg/a2ui` | **A2UI 风格 JSONL** 事件导出（流式 UI 协议子集） |
-| `cmd/brook` | 可执行入口：加载 YAML、**Runner**、可选 **Resume**、A2UI 输出 |
+| `cmd/brook` | 唯一可执行入口：TUI（默认）、`cli` 单次查询、`gateway` HTTP；加载 YAML、**Runner**、可选 **Resume**、A2UI 输出 |

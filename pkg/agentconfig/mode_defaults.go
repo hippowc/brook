@@ -71,6 +71,8 @@ func ModeSwitchUserHint(mode AgentMode) string {
 		return "本次切换已清空 mode_config（Deep 可用默认）；可选配置 mode_config.deep 与 sub_agent_names。详见 doc/agent-configuration-guide.md。"
 	case ModeReAct:
 		return "本次切换已清空 mode_config（ReAct 无需子 Agent）。"
+	case ModeCustom:
+		return "已切换为 custom。可稍后在 agent.yaml 填写 custom_script；未就绪时 TUI 会进入「创建」模式。示例见 config/examples/custom/README.md。"
 	default:
 		return "已更新 mode_config；详见 doc/agent-configuration-guide.md。"
 	}

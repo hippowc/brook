@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,11 +18,21 @@ import (
 	"github.com/hippowc/brook/pkg/agentconfig"
 )
 
+// sessionLockShards 按 SessionKey 分桶加锁：同一会话 Load→Query→Save 仍串行，不同会话可并行。
+// 固定桶数避免 per-key map 无限增长；哈希碰撞仅导致无关会话偶尔互斥，可接受。
+const sessionLockShards = 256
+
 type chatHandler struct {
 	rt    *launcher.Runtime
 	store SessionStore
 	spec  *agentconfig.GatewaySpec
-	mu    *sync.Mutex
+	locks [sessionLockShards]sync.Mutex
+}
+
+func sessionLockIndex(key string) int {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(key))
+	return int(h.Sum32() % sessionLockShards)
 }
 
 type chatRequest struct {
@@ -99,8 +110,9 @@ func (h *chatHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(qsec)*time.Second)
 	defer cancel()
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	i := sessionLockIndex(key)
+	h.locks[i].Lock()
+	defer h.locks[i].Unlock()
 
 	sessKV, err := h.store.Load(key)
 	if err != nil {
