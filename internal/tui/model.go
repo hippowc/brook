@@ -364,6 +364,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "ctrl+c":
 				m.cancelRun()
 				return m, nil
+			case "pgup", "pgdown", "ctrl+u", "ctrl+d":
+				var cmd tea.Cmd
+				m.vp, cmd = m.vp.Update(msg)
+				return m, cmd
+			case "up", "ctrl+p":
+				m.vp.LineUp(1)
+				return m, nil
+			case "down", "ctrl+n":
+				m.vp.LineDown(1)
+				return m, nil
 			default:
 				return m, nil
 			}
@@ -381,6 +391,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.vp, cmd = m.vp.Update(msg)
 			return m, cmd
+		case "up", "ctrl+p":
+			// 输入框为空时，方向键用于滚动历史消息。
+			if strings.TrimSpace(m.ti.Value()) == "" {
+				m.vp.LineUp(1)
+				return m, nil
+			}
+		case "down", "ctrl+n":
+			if strings.TrimSpace(m.ti.Value()) == "" {
+				m.vp.LineDown(1)
+				return m, nil
+			}
 		}
 		if msg.String() == "enter" {
 			return m.submitInput()
@@ -1085,11 +1106,11 @@ func (m *Model) renderHeader() string {
 }
 
 func (m *Model) placeholder() string {
-	return styleMeta.Render("  Enter 发送 · /agent mode · /config · /new · Tab 补全 · pgup/pgdn · Ctrl+C/V · Esc 退出")
+	return styleMeta.Render("  Enter 发送 · /agent mode · /config · /new · Tab 补全 · ↑↓/PgUpPgDn · Ctrl+P/N · Ctrl+C/V · Esc 退出")
 }
 
 func (m *Model) renderFooter() string {
-	hint := "enter · /agent mode · /config · /new · tab · 滚轮/pgup · ctrl+c/v · esc 退出"
+	hint := "enter · /agent mode · /config · /new · tab · ↑↓/pgup · ctrl+p/n · ctrl+c/v · esc 退出"
 	if m.busy {
 		hint = "生成中… · esc / ctrl+c 取消"
 	}
