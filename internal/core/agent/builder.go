@@ -10,8 +10,8 @@ import (
 	"github.com/cloudwego/eino/adk/prebuilt/deep"
 	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
 	"github.com/cloudwego/eino/adk/prebuilt/supervisor"
-	"github.com/cloudwego/eino/compose"
 	einomodel "github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/compose"
 
 	agentfs "github.com/hippowc/brook/internal/core/fs"
 	agentmodel "github.com/hippowc/brook/internal/core/model"
@@ -19,7 +19,6 @@ import (
 	"github.com/hippowc/brook/pkg/agentconfig"
 )
 
-// Build 从根配置构造 Agent；Custom 模式需自行扩展。
 func Build(ctx context.Context, root *agentconfig.Root) (adk.Agent, error) {
 	if err := root.Validate(); err != nil {
 		return nil, err
@@ -65,20 +64,19 @@ func chatHandlers(bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddl
 		hs = append(hs, bundle.Middleware)
 	}
 	hs = append(hs, extra...)
-	// 置于 Handlers 末尾，使在 adk 中成为最外层包装：工具返回的 error 转为 observation，避免 ToolsNode 直接失败。
 	hs = append(hs, newToolErrorAsObservationMiddleware())
 	return hs
 }
 
 func buildReact(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
 	cfg := &adk.ChatModelAgentConfig{
-		Name:            root.Agent.Name,
-		Description:     root.Agent.Description,
-		Instruction:     root.Agent.Instruction,
-		Model:           cm,
-		MaxIterations:   root.Agent.MaxIterations,
-		OutputKey:       root.Memory.OutputKey,
-		Handlers:        chatHandlers(bundle, extra),
+		Name:          root.Agent.Name,
+		Description:   root.Agent.Description,
+		Instruction:   root.Agent.Instruction,
+		Model:         cm,
+		MaxIterations: root.Agent.MaxIterations,
+		OutputKey:     root.Memory.OutputKey,
+		Handlers:      chatHandlers(bundle, extra),
 		ToolsConfig: adk.ToolsConfig{
 			ToolsNodeConfig: compose.ToolsNodeConfig{},
 			ReturnDirectly:  root.Agent.Tools.ReturnDirectly,
@@ -89,33 +87,29 @@ func buildReact(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseCh
 
 func buildDeep(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
 	var subs []adk.Agent
-	if root.Agent.ModeConfig != nil && len(root.Agent.ModeConfig.SubAgentNames) > 0 {
+	if root.Modes.Deep != nil && len(root.Modes.Deep.AgentIDs) > 0 {
 		var err error
-		subs, err = buildNamedAgents(ctx, root, cm, bundle, extra, root.Agent.ModeConfig.SubAgentNames)
+		subs, err = buildNamedAgents(ctx, root, cm, bundle, extra, root.Modes.Deep.AgentIDs)
 		if err != nil {
 			return nil, err
 		}
 	}
 	dc := &deep.Config{
-		Name:          root.Agent.Name,
-		Description:   root.Agent.Description,
-		ChatModel:     cm,
-		Instruction:   root.Agent.Instruction,
-		SubAgents:     subs,
-		MaxIteration:  root.Agent.MaxIterations,
-		OutputKey:     root.Memory.OutputKey,
-		Handlers:      chatHandlers(bundle, extra),
-		ToolsConfig: adk.ToolsConfig{
-			ToolsNodeConfig: compose.ToolsNodeConfig{},
-			ReturnDirectly:  root.Agent.Tools.ReturnDirectly,
-		},
-		ModelRetryConfig: nil,
+		Name:         root.Agent.Name,
+		Description:  root.Agent.Description,
+		ChatModel:    cm,
+		Instruction:  root.Agent.Instruction,
+		SubAgents:    subs,
+		MaxIteration: root.Agent.MaxIterations,
+		OutputKey:    root.Memory.OutputKey,
+		Handlers:     chatHandlers(bundle, extra),
+		ToolsConfig:  adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{}, ReturnDirectly: root.Agent.Tools.ReturnDirectly},
 	}
-	if root.Agent.ModeConfig != nil && root.Agent.ModeConfig.Deep != nil {
-		dc.WithoutWriteTodos = root.Agent.ModeConfig.Deep.WithoutWriteTodos
-		dc.WithoutGeneralSubAgent = root.Agent.ModeConfig.Deep.WithoutGeneralSubAgent
-		if root.Agent.ModeConfig.Deep.MaxIteration > 0 {
-			dc.MaxIteration = root.Agent.ModeConfig.Deep.MaxIteration
+	if root.Modes.Deep != nil {
+		dc.WithoutWriteTodos = root.Modes.Deep.WithoutWriteTodos
+		dc.WithoutGeneralSubAgent = root.Modes.Deep.WithoutGeneralSubAgent
+		if root.Modes.Deep.MaxIteration > 0 {
+			dc.MaxIteration = root.Modes.Deep.MaxIteration
 		}
 	}
 	if bundle != nil {
@@ -126,24 +120,33 @@ func buildDeep(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseCha
 	return deep.New(ctx, dc)
 }
 
-func buildNamedAgents(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware, names []string) ([]adk.Agent, error) {
+func buildNamedAgents(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, _ []adk.ChatModelAgentMiddleware, ids []string) ([]adk.Agent, error) {
 	var out []adk.Agent
-	for _, n := range names {
-		name := strings.TrimSpace(n)
-		if name == "" {
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
 			continue
+		}
+		spec, ok := root.Agents[id]
+		if !ok {
+			return nil, fmt.Errorf("agent: unknown agent id %q", id)
+		}
+		name := strings.TrimSpace(spec.Name)
+		if name == "" {
+			name = id
+		}
+		inst := strings.TrimSpace(spec.Instruction)
+		if inst == "" {
+			inst = root.Agent.Instruction + fmt.Sprintf("\n\n[Your role: sub-agent %q]", id)
 		}
 		cfg := &adk.ChatModelAgentConfig{
 			Name:          name,
-			Description:   root.Agent.Description + " / " + name,
-			Instruction:   root.Agent.Instruction + fmt.Sprintf("\n\n[Your role: sub-agent %q]", name),
+			Description:   root.Agent.Description + " / " + id,
+			Instruction:   inst,
 			Model:         cm,
 			MaxIterations: root.Agent.MaxIterations,
 			Handlers:      chatHandlers(bundle, nil),
-			ToolsConfig: adk.ToolsConfig{
-				ToolsNodeConfig: compose.ToolsNodeConfig{},
-				ReturnDirectly:  root.Agent.Tools.ReturnDirectly,
-			},
+			ToolsConfig:   adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{}, ReturnDirectly: root.Agent.Tools.ReturnDirectly},
 		}
 		a, err := adk.NewChatModelAgent(ctx, cfg)
 		if err != nil {
@@ -155,83 +158,62 @@ func buildNamedAgents(ctx context.Context, root *agentconfig.Root, cm einomodel.
 }
 
 func buildSequential(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
-	names := root.Agent.ModeConfig.SubAgentNames
-	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, names)
+	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, root.Modes.Sequential.AgentIDs)
 	if err != nil {
 		return nil, err
 	}
-	return adk.NewSequentialAgent(ctx, &adk.SequentialAgentConfig{
-		Name:        root.Agent.Name,
-		Description: root.Agent.Description,
-		SubAgents:   subs,
-	})
+	return adk.NewSequentialAgent(ctx, &adk.SequentialAgentConfig{Name: root.Agent.Name, Description: root.Agent.Description, SubAgents: subs})
 }
 
 func buildParallel(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
-	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, root.Agent.ModeConfig.SubAgentNames)
+	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, root.Modes.Parallel.AgentIDs)
 	if err != nil {
 		return nil, err
 	}
-	return adk.NewParallelAgent(ctx, &adk.ParallelAgentConfig{
-		Name:        root.Agent.Name,
-		Description: root.Agent.Description,
-		SubAgents:   subs,
-	})
+	return adk.NewParallelAgent(ctx, &adk.ParallelAgentConfig{Name: root.Agent.Name, Description: root.Agent.Description, SubAgents: subs})
 }
 
 func buildLoop(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
-	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, root.Agent.ModeConfig.SubAgentNames)
+	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, root.Modes.Loop.AgentIDs)
 	if err != nil {
 		return nil, err
 	}
 	maxIter := 3
-	if root.Agent.ModeConfig != nil && root.Agent.ModeConfig.LoopMaxIterations > 0 {
-		maxIter = root.Agent.ModeConfig.LoopMaxIterations
+	if root.Modes.Loop.MaxIterations > 0 {
+		maxIter = root.Modes.Loop.MaxIterations
 	}
-	return adk.NewLoopAgent(ctx, &adk.LoopAgentConfig{
-		Name:          root.Agent.Name,
-		Description:   root.Agent.Description,
-		SubAgents:     subs,
-		MaxIterations: maxIter,
-	})
+	return adk.NewLoopAgent(ctx, &adk.LoopAgentConfig{Name: root.Agent.Name, Description: root.Agent.Description, SubAgents: subs, MaxIterations: maxIter})
 }
 
 func buildSupervisor(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
-	supName := root.Agent.ModeConfig.Supervisor.SupervisorAgentName
-	var workers []string
-	for _, n := range root.Agent.ModeConfig.SubAgentNames {
-		if strings.TrimSpace(n) != "" && n != supName {
-			workers = append(workers, n)
-		}
-	}
-	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, workers)
+	mc := root.Modes.Supervisor
+	subs, err := buildNamedAgents(ctx, root, cm, bundle, extra, mc.WorkerIDs)
 	if err != nil {
 		return nil, err
 	}
+	spec := root.Agents[mc.SupervisorID]
+	supInst := strings.TrimSpace(spec.Instruction)
+	if supInst == "" {
+		supInst = root.Agent.Instruction + "\n\nYou coordinate sub-agents."
+	}
 	sup, err := adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
-		Name:          supName,
+		Name:          mc.SupervisorID,
 		Description:   root.Agent.Description + " (supervisor)",
-		Instruction:   root.Agent.Instruction + "\n\nYou coordinate sub-agents.",
+		Instruction:   supInst,
 		Model:         cm,
 		MaxIterations: root.Agent.MaxIterations,
 		Handlers:      chatHandlers(bundle, extra),
-		ToolsConfig: adk.ToolsConfig{
-			ToolsNodeConfig: compose.ToolsNodeConfig{},
-			ReturnDirectly:    root.Agent.Tools.ReturnDirectly,
-		},
+		ToolsConfig:   adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{}, ReturnDirectly: root.Agent.Tools.ReturnDirectly},
 	})
 	if err != nil {
 		return nil, err
 	}
-	return supervisor.New(ctx, &supervisor.Config{
-		Supervisor: sup,
-		SubAgents:  subs,
-	})
+	return supervisor.New(ctx, &supervisor.Config{Supervisor: sup, SubAgents: subs})
 }
 
 func buildPlanExecute(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
-	pe := root.Agent.ModeConfig.PlanExecute
-	names := []string{pe.PlannerName, pe.ExecutorName, pe.ReplannerName}
+	pe := root.Modes.PlanExecute
+	names := []string{pe.PlannerID, pe.ExecutorID, pe.ReplannerID}
 	agents, err := buildNamedAgents(ctx, root, cm, bundle, extra, names)
 	if err != nil {
 		return nil, err
@@ -240,16 +222,11 @@ func buildPlanExecute(ctx context.Context, root *agentconfig.Root, cm einomodel.
 	for _, a := range agents {
 		byName[a.Name(ctx)] = a
 	}
-	planner := byName[pe.PlannerName]
-	exec := byName[pe.ExecutorName]
-	replan := byName[pe.ReplannerName]
+	planner := byName[pe.PlannerID]
+	exec := byName[pe.ExecutorID]
+	replan := byName[pe.ReplannerID]
 	if planner == nil || exec == nil || replan == nil {
-		return nil, fmt.Errorf("agent: plan_execute agents not found for names %+v", pe)
+		return nil, fmt.Errorf("agent: plan_execute agents not found for ids %+v", pe)
 	}
-	return planexecute.New(ctx, &planexecute.Config{
-		Planner:       planner,
-		Executor:      exec,
-		Replanner:     replan,
-		MaxIterations: root.Agent.MaxIterations,
-	})
+	return planexecute.New(ctx, &planexecute.Config{Planner: planner, Executor: exec, Replanner: replan, MaxIterations: root.Agent.MaxIterations})
 }

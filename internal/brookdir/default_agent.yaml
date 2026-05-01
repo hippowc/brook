@@ -1,13 +1,7 @@
-# Brook 默认配置（首次运行时写入 ~/.brook/agent.yaml）
-#
-# 本文件刻意保持「最小可运行」：react + 单模型 + filesystem + memory + interrupt。
-# 完整字段与 agent.mode 各模式写法见仓库 doc/agent-configuration-guide.md；
-# 亦可参考 config/agent.example.yaml。TUI 中输入 /help 可查看内置命令与模式速查。
-#
-# agent.mode 可选：react | deep | sequential | parallel | loop | supervisor | plan_execute
-# （custom 未在 Brook 中接线）。切换模式后多数情况需补全 mode_config，见上述文档。
+# Brook 默认配置（首次运行写入 ~/.brook/agent.yaml）
+# 配置说明见 config/docs/agent-configuration-guide.md。
 
-version: "1"
+version: "2"
 
 agent:
   mode: react
@@ -18,7 +12,6 @@ agent:
   user_prompt: ""
   max_iterations: 24
   working_directory: "__WORKSPACE__"
-
   tools:
     filesystem:
       enabled: true
@@ -26,12 +19,32 @@ agent:
       shell: true
       streaming_shell: false
       local:
-        # strict 下仅允许白名单命令（见 internal/core/fs/backend.go）；Deep 子 Agent 常用 find/head 等
         strict_commands: true
     return_directly: {}
-
   middlewares: []
-  mode_config: null
+
+agents: {}
+
+modes:
+  deep: {}
+  sequential:
+    agent_ids: ["step_a", "step_b"]
+  parallel:
+    agent_ids: ["step_a", "step_b"]
+  loop:
+    agent_ids: ["loop_worker"]
+    max_iterations: 5
+  supervisor:
+    supervisor_id: "supervisor"
+    worker_ids: ["worker_1"]
+  plan_execute:
+    planner_id: "planner"
+    executor_id: "executor"
+    replanner_id: "planner"
+  custom:
+    script: ""
+    agents_file: ""
+    params: {}
 
 models:
   providers:
@@ -46,7 +59,6 @@ models:
       api_key_env: ""
       base_url: "http://127.0.0.1:11434"
       extra: {}
-
   active:
     provider: openai
     model: "gpt-4o-mini"
@@ -70,7 +82,6 @@ a2ui:
   enabled: false
   version: "0.8"
 
-# HTTP 网关（brook gateway）；默认关闭，避免误监听端口
 gateway:
   enabled: false
   listen: ":8787"

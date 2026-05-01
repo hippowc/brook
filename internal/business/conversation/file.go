@@ -16,6 +16,7 @@ const FileVersion = 1
 type File struct {
 	Version    int       `json:"version"`
 	ID         string    `json:"id"`
+	Name       string    `json:"name,omitempty"`
 	UpdatedAt  time.Time `json:"updated_at"`
 	ConfigPath string    `json:"config_path,omitempty"`
 	// Messages 使用与 schema.Message 一致的 JSON 结构，便于与 ADK 互操作。

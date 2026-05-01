@@ -15,10 +15,10 @@ func TestExpandAtFileRefs(t *testing.T) {
 	r := &Root{
 		Version: "1",
 		Agent: AgentSpec{
-			Name:          "t",
-			Instruction:   "@" + filepath.Base(prompt),
-			UserPrompt:    "@" + filepath.Base(prompt),
-			Mode:          ModeReAct,
+			Name:        "t",
+			Instruction: "@" + filepath.Base(prompt),
+			UserPrompt:  "@" + filepath.Base(prompt),
+			Mode:        ModeReAct,
 		},
 		Memory: MemorySpec{SessionStore: "memory"},
 		Models: ModelsSpec{

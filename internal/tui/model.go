@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -42,8 +43,8 @@ type streamMsg struct {
 }
 
 type turn struct {
-	role   string // user | assistant | error | toolcall | toolresult | meta
-	text   string
+	role string // user | assistant | error | toolcall | toolresult | meta
+	text string
 	// reasoning 模型思考过程（如 ReasoningContent），与主回复区分展示
 	reasoning string
 	stream    bool
@@ -62,7 +63,7 @@ type Model struct {
 	vp viewport.Model
 	ti textinput.Model
 
-	turns   []turn
+	turns            []turn
 	pending          strings.Builder
 	pendingReasoning strings.Builder
 
@@ -82,12 +83,22 @@ type Model struct {
 	// 多轮对话持久化（~/.brook/conversations/<uuid>.json）
 	convID       string
 	convFilePath string
+	convName     string
 
 	// agent.mode=custom 时：false=使用 Starlark 主编排；true=LLM 创建助手（独立 Runner，会话不落主 SessionValues）。
-	customBuild  bool
-	buildRunner  *adk.Runner
+	customBuild bool
+	buildRunner *adk.Runner
 	// customEnterMetaShown 避免多次 reload 重复插入「已进入创建模式」提示。
 	customEnterMetaShown bool
+
+	// 主会话区选区（相对于 vpContentRaw 按 \n 切分的逻辑行与单元格列坐标）。
+	vpContentRaw string
+	selMouseDown bool
+	selDragging  bool
+	selARow      int
+	selACol      int
+	selBRow      int
+	selBCol      int
 }
 
 const maxToolArgRunes = 8000
@@ -133,6 +144,8 @@ func New(rt *launcher.Runtime, cfgPath, convID string) *Model {
 	mo.refreshMetaLine()
 	mo.loadConversationFile()
 	mo.bootstrapCustomModeIfNeeded()
+	mo.selARow = -1
+	mo.selBRow = -1
 	// 必须在返回的模型上同步 Focus：Init 里若用值接收器调用 Focus 只会改副本，会导致输入区不聚焦。
 	_ = mo.ti.Focus()
 	return mo
@@ -163,7 +176,7 @@ func (m *Model) refreshInputPlaceholder() {
 		m.ti.Placeholder = "「使用」：对话走 Starlark…  /custom build 创建助手 · /help"
 		return
 	}
-	m.ti.Placeholder = "输入消息…  /help  ·  /agent mode  ·  /config  ·  /new  ·  Tab 补全"
+	m.ti.Placeholder = "输入消息…  /help  ·  /agent mode  ·  /config  ·  /session  ·  Tab 补全"
 }
 
 func (m *Model) loadConversationFile() {
@@ -182,6 +195,7 @@ func (m *Model) loadConversationFile() {
 		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("会话文件 id 与参数不一致: file=%s arg=%s", f.ID, m.convID)})
 		return
 	}
+	m.convName = strings.TrimSpace(f.Name)
 	for _, ct := range conversation.MessagesToTurns(f.MessagesPointers()) {
 		m.turns = append(m.turns, convTurnToUI(ct))
 	}
@@ -192,7 +206,10 @@ func (m *Model) bootstrapCustomModeIfNeeded() {
 	if m.rt.Root.Agent.Mode != agentconfig.ModeCustom {
 		return
 	}
-	p := strings.TrimSpace(m.rt.Root.Agent.CustomScript)
+	p := ""
+	if m.rt.Root.CustomMode() != nil {
+		p = strings.TrimSpace(m.rt.Root.CustomMode().Script)
+	}
 	if p != "" {
 		_, statErr := os.Stat(p)
 		if statErr == nil {
@@ -224,7 +241,7 @@ func (m *Model) bootstrapCustomModeIfNeeded() {
 	}
 	m.buildRunner = br
 	if !m.customEnterMetaShown {
-		m.turns = append(m.turns, turn{role: "meta", text: "当前为 custom 模式：尚未配置可用的 custom_script 或文件不存在。已自动进入「创建」模式；编排就绪后输入 /custom run 切回使用模式。"})
+		m.turns = append(m.turns, turn{role: "meta", text: "当前为 custom 模式：尚未配置可用的 modes.custom.script 或文件不存在。已自动进入「创建」模式；编排就绪后输入 /custom run 切回使用模式。"})
 		m.customEnterMetaShown = true
 	}
 	m.refreshInputPlaceholder()
@@ -306,14 +323,14 @@ func (m *Model) saveConversation() error {
 		return nil
 	}
 	msgs := conversation.TurnsToMessages(m.persistableConvTurns(), 0)
-	f := &conversation.File{ID: m.convID, ConfigPath: m.cfgPath}
+	f := &conversation.File{ID: m.convID, Name: strings.TrimSpace(m.convName), ConfigPath: m.cfgPath}
 	f.SetFromMessages(msgs)
 	if err := conversation.Save(m.convFilePath, f); err != nil {
 		return err
 	}
 	_ = brookdir.WriteCurrentConversationID(m.convID)
 	if convDir, err := brookdir.ConversationsDir(); err == nil {
-		_ = conversation.UpdateIndex(convDir, m.convID, m.cfgPath, conversationPreview(m.turns))
+		_ = conversation.UpdateIndex(convDir, m.convID, strings.TrimSpace(m.convName), m.cfgPath, conversationPreview(m.turns))
 	}
 	return nil
 }
@@ -359,6 +376,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if !m.busy && !m.editingConfig {
+			if m.tryPasteChord(msg) {
+				return m, tea.Batch(textinput.Paste, textinput.Blink)
+			}
+			if m.tryCopySelectionChord(msg) {
+				return m, nil
+			}
+		}
 		if m.busy {
 			switch msg.String() {
 			case "esc", "ctrl+c":
@@ -377,9 +402,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				return m, nil
 			}
-		}
-		if msg.String() == "ctrl+c" {
-			return m.copyToClipboard()
 		}
 		if msg.String() == "tab" {
 			if m.applySlashTabCompletion() {
@@ -501,11 +523,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitStream(m.ch)
 	}
 
-	if _, ok := msg.(tea.MouseMsg); ok {
+	if mouse, ok := msg.(tea.MouseMsg); ok {
+		if m.handleViewportMouse(mouse) {
+			return m, nil
+		}
 		var vcmd tea.Cmd
-		m.vp, vcmd = m.vp.Update(msg)
+		m.vp, vcmd = m.vp.Update(mouse)
 		var cmd tea.Cmd
-		m.ti, cmd = m.ti.Update(msg)
+		m.ti, cmd = m.ti.Update(mouse)
 		return m, tea.Batch(vcmd, cmd)
 	}
 
@@ -553,9 +578,13 @@ func (m *Model) submitInput() (tea.Model, tea.Cmd) {
 			m.ti.Reset()
 			return m.openConfigEditor()
 		}
-		if first == "/new" {
+		if first == "/session" {
 			m.ti.Reset()
-			return m.startNewConversation()
+			return m.handleSessionCommand(strings.TrimSpace(raw))
+		}
+		if first == "/new" { // 兼容旧命令
+			m.ti.Reset()
+			return m.handleSessionCommand("/session new")
 		}
 	}
 	m.ti.Reset()
@@ -565,7 +594,7 @@ func (m *Model) submitInput() (tea.Model, tea.Cmd) {
 func (m *Model) handleAgentCommand(raw string) (tea.Model, tea.Cmd) {
 	fields := strings.Fields(raw)
 	if len(fields) < 3 || !strings.EqualFold(fields[1], "mode") {
-		m.turns = append(m.turns, turn{role: "meta", text: "用法: /agent mode <react|deep|sequential|parallel|loop|supervisor|plan_execute|custom>（custom 需配置 custom_script）"})
+		m.turns = append(m.turns, turn{role: "meta", text: "用法: /agent mode <react|deep|sequential|parallel|loop|supervisor|plan_execute|custom>（custom 需配置 modes.custom.script）"})
 		m.setViewportMain(m.transcript())
 		return m, m.ti.Focus()
 	}
@@ -657,9 +686,9 @@ func (m *Model) handleCustomCommand(raw string) (tea.Model, tea.Cmd) {
 		m.refreshMetaLine()
 		m.bootstrapCustomModeIfNeeded()
 		if m.customBuild {
-			m.turns = append(m.turns, turn{role: "meta", text: "配置已从磁盘重新加载，但 custom_script 仍不可用或文件不存在，仍停留在「创建」模式；请检查路径或继续用助手落盘。"})
+			m.turns = append(m.turns, turn{role: "meta", text: "配置已从磁盘重新加载，但 modes.custom.script 仍不可用或文件不存在，仍停留在「创建」模式；请检查路径或继续用助手落盘。"})
 		} else {
-			m.turns = append(m.turns, turn{role: "meta", text: "已回到「使用」模式并已从磁盘重新加载配置；对话将按 custom_script 中 Starlark 编排执行。"})
+			m.turns = append(m.turns, turn{role: "meta", text: "已回到「使用」模式并已从磁盘重新加载配置；对话将按 modes.custom.script 中 Starlark 编排执行。"})
 		}
 		m.setViewportMain(m.transcript())
 		return m, m.ti.Focus()
@@ -683,8 +712,166 @@ func (m *Model) startNewConversation() (tea.Model, tea.Cmd) {
 	}
 	m.convID = id
 	m.convFilePath = path
+	m.convName = ""
 	m.turns = []turn{{role: "meta", text: fmt.Sprintf("已开始新会话（%s…）", id[:8])}}
 	_ = brookdir.WriteCurrentConversationID(id)
+	m.refreshMetaLine()
+	m.setViewportMain(m.transcript())
+	return m, m.ti.Focus()
+}
+
+func (m *Model) handleSessionCommand(raw string) (tea.Model, tea.Cmd) {
+	fields := strings.Fields(raw)
+	if len(fields) < 2 {
+		m.turns = append(m.turns, turn{role: "meta", text: "用法: /session new | /session list | /session open <id|前缀> | /session rename <名称>"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	switch strings.ToLower(fields[1]) {
+	case "new":
+		return m.startNewConversation()
+	case "list", "ls":
+		return m.listSessions()
+	case "open":
+		if len(fields) < 3 {
+			m.turns = append(m.turns, turn{role: "meta", text: "用法: /session open <id|前缀>"})
+			m.setViewportMain(m.transcript())
+			return m, m.ti.Focus()
+		}
+		return m.openSessionByRef(strings.TrimSpace(fields[2]))
+	case "rename":
+		name := strings.TrimSpace(strings.TrimPrefix(raw, fields[0]+" "+fields[1]))
+		if name == "" {
+			m.turns = append(m.turns, turn{role: "meta", text: "用法: /session rename <名称>"})
+			m.setViewportMain(m.transcript())
+			return m, m.ti.Focus()
+		}
+		return m.renameSession(name)
+	default:
+		m.turns = append(m.turns, turn{role: "meta", text: "用法: /session new | /session list | /session open <id|前缀> | /session rename <名称>"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+}
+
+func (m *Model) listSessions() (tea.Model, tea.Cmd) {
+	convDir, err := brookdir.ConversationsDir()
+	if err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("读取会话目录: %v", err)})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	idx, err := conversation.LoadIndex(convDir)
+	if err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("读取会话索引: %v", err)})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	if len(idx.Conversations) == 0 {
+		m.turns = append(m.turns, turn{role: "meta", text: "暂无会话。可用 /session new 创建。"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	var b strings.Builder
+	b.WriteString("会话列表（最新在前）：\n")
+	for i, ent := range idx.Conversations {
+		if i >= 20 {
+			break
+		}
+		name := strings.TrimSpace(ent.Name)
+		if name == "" {
+			name = "(未命名)"
+		}
+		pv := strings.TrimSpace(ent.Preview)
+		if pv == "" {
+			pv = "-"
+		}
+		short := ent.ID
+		if len(short) > 8 {
+			short = short[:8]
+		}
+		b.WriteString(fmt.Sprintf("- %s  %s  %s\n", short, name, pv))
+	}
+	m.turns = append(m.turns, turn{role: "meta", text: strings.TrimRight(b.String(), "\n")})
+	m.setViewportMain(m.transcript())
+	return m, m.ti.Focus()
+}
+
+func (m *Model) openSessionByRef(ref string) (tea.Model, tea.Cmd) {
+	ref = strings.TrimSpace(ref)
+	if ref == "" {
+		return m, m.ti.Focus()
+	}
+	if err := m.saveConversation(); err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("保存当前会话失败: %v", err)})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	convDir, err := brookdir.ConversationsDir()
+	if err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("读取会话目录: %v", err)})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	idx, _ := conversation.LoadIndex(convDir)
+	targetID := ""
+	for _, ent := range idx.Conversations {
+		if ent.ID == ref || strings.HasPrefix(ent.ID, ref) {
+			if targetID != "" && targetID != ent.ID {
+				m.turns = append(m.turns, turn{role: "error", text: "会话前缀不唯一，请输入更完整的 ID。"})
+				m.setViewportMain(m.transcript())
+				return m, m.ti.Focus()
+			}
+			targetID = ent.ID
+		}
+	}
+	if targetID == "" {
+		if err := conversation.ValidateID(ref); err == nil {
+			targetID = ref
+		}
+	}
+	if targetID == "" {
+		m.turns = append(m.turns, turn{role: "error", text: "未找到对应会话。先用 /session list 查看可用 ID。"})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	path, err := brookdir.ConversationFile(targetID)
+	if err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: err.Error()})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	f, err := conversation.Load(path)
+	if err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("打开会话失败: %v", err)})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	m.convID = targetID
+	m.convFilePath = path
+	m.convName = strings.TrimSpace(f.Name)
+	m.turns = []turn{{role: "meta", text: fmt.Sprintf("已打开会话（%s…）", targetID[:8])}}
+	for _, ct := range conversation.MessagesToTurns(f.MessagesPointers()) {
+		m.turns = append(m.turns, convTurnToUI(ct))
+	}
+	_ = brookdir.WriteCurrentConversationID(targetID)
+	m.refreshMetaLine()
+	m.setViewportMain(m.transcript())
+	return m, m.ti.Focus()
+}
+
+func (m *Model) renameSession(name string) (tea.Model, tea.Cmd) {
+	m.convName = strings.TrimSpace(name)
+	if err := m.saveConversation(); err != nil {
+		m.turns = append(m.turns, turn{role: "error", text: fmt.Sprintf("重命名会话失败: %v", err)})
+		m.setViewportMain(m.transcript())
+		return m, m.ti.Focus()
+	}
+	short := m.convID
+	if len(short) > 8 {
+		short = short[:8]
+	}
+	m.turns = append(m.turns, turn{role: "meta", text: fmt.Sprintf("会话 %s… 已重命名为：%s", short, m.convName)})
 	m.refreshMetaLine()
 	m.setViewportMain(m.transcript())
 	return m, m.ti.Focus()
@@ -727,17 +914,19 @@ func (m *Model) updateConfigScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.layoutConfigEditor()
 		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "esc":
+		switch {
+		case msg.String() == "esc":
 			m.editingConfig = false
 			m.cfgTA.Blur()
 			return m, m.ti.Focus()
-		case "ctrl+c":
+		case m.matchCopyKey(msg):
 			return m.copyConfigEditorToClipboard()
-		case "ctrl+q":
+		case m.matchQuitKey(msg):
 			return m, tea.Quit
-		case "ctrl+s":
+		case m.matchSaveKey(msg):
 			return m.saveConfigAndReload()
+		case m.matchPasteKey(msg):
+			return m, textarea.Paste
 		default:
 		}
 	}
@@ -1093,7 +1282,10 @@ func (m *Model) renderConfigHeader() string {
 }
 
 func (m *Model) renderConfigFooter() string {
-	hint := "ctrl+s 保存 · esc 返回 · ctrl+c 复制 · ctrl+v 粘贴 · ctrl+q 退出"
+	hint := "Ctrl+S 保存 · Esc 返回 · Ctrl+C 复制 · Ctrl+V 粘贴 · Ctrl+Q 退出"
+	if m.isDarwin() {
+		hint = "Cmd+S/Ctrl+S 保存 · Esc 返回 · Cmd+C/Ctrl+C 复制 · Cmd+V/Ctrl+V 粘贴 · Cmd+Q/Ctrl+Q 退出"
+	}
 	return styleFooter.Width(m.width - 2).Render(hint)
 }
 
@@ -1106,15 +1298,68 @@ func (m *Model) renderHeader() string {
 }
 
 func (m *Model) placeholder() string {
-	return styleMeta.Render("  Enter 发送 · /agent mode · /config · /new · Tab 补全 · ↑↓/PgUpPgDn · Ctrl+P/N · Ctrl+C/V · Esc 退出")
+	return styleMeta.Render("  Enter 发送 · /agent mode · /config · /new · Tab · ↑↓滚动 · 拖选后 " + m.copyHintLabel() + " 复制 · " + m.pasteHintLabel() + " 粘贴 · Esc 退出")
 }
 
 func (m *Model) renderFooter() string {
-	hint := "enter · /agent mode · /config · /new · tab · ↑↓/pgup · ctrl+p/n · ctrl+c/v · esc 退出"
+	hint := "enter · 拖选会话区 · " + strings.ToLower(m.copyHintLabel()) + " 复制 · " + strings.ToLower(m.pasteHintLabel()) + " 粘贴 · ↑↓/pgup · esc 退出"
 	if m.busy {
 		hint = "生成中… · esc / ctrl+c 取消"
 	}
 	return styleFooter.Width(m.width - 2).Render(hint)
+}
+
+func (m *Model) isDarwin() bool {
+	return runtime.GOOS == "darwin"
+}
+
+func (m *Model) primaryModLabel() string {
+	if m.isDarwin() {
+		return "Cmd"
+	}
+	return "Ctrl"
+}
+
+func (m *Model) copyHintLabel() string {
+	if m.isDarwin() {
+		return "Cmd+C"
+	}
+	return "Ctrl+Shift+C"
+}
+
+func (m *Model) pasteHintLabel() string {
+	if m.isDarwin() {
+		return "Cmd+V"
+	}
+	return "Ctrl+V"
+}
+
+func (m *Model) matchSaveKey(msg tea.KeyMsg) bool {
+	if msg.String() == "ctrl+s" {
+		return true
+	}
+	return m.isDarwin() && msg.String() == "alt+s"
+}
+
+func (m *Model) matchCopyKey(msg tea.KeyMsg) bool {
+	if msg.String() == "ctrl+c" {
+		return true
+	}
+	return m.isDarwin() && msg.String() == "alt+c"
+}
+
+func (m *Model) matchPasteKey(msg tea.KeyMsg) bool {
+	if msg.String() == "ctrl+v" {
+		return true
+	}
+	return m.isDarwin() && msg.String() == "alt+v"
+}
+
+func (m *Model) matchQuitKey(msg tea.KeyMsg) bool {
+	if msg.String() == "ctrl+q" {
+		return true
+	}
+	return m.isDarwin() && msg.String() == "alt+q"
 }
 
 // syncViewportLayout 按实际渲染高度计算 viewport，避免输入区（含上下分隔线）高度被低估导致整屏错位。
@@ -1135,8 +1380,10 @@ func (m *Model) syncViewportLayout() {
 }
 
 func (m *Model) setViewportMain(content string) {
+	m.resetViewportSelection()
+	m.vpContentRaw = content
 	m.syncViewportLayout()
-	m.vp.SetContent(content)
+	m.vp.SetContent(m.applySelectionHighlight(content))
 	m.vp.GotoBottom()
 }
 

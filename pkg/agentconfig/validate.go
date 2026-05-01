@@ -6,13 +6,13 @@ import (
 	"strings"
 )
 
-// Validate 对 Root 做基本一致性校验，避免运行期才暴露配置错误。
+// Validate 对 Root 做基本一致性校验。
 func (r *Root) Validate() error {
 	if r == nil {
 		return fmt.Errorf("agentconfig: root is nil")
 	}
 	if r.Version == "" {
-		r.Version = "1"
+		r.Version = "2"
 	}
 	if err := r.Agent.validate(); err != nil {
 		return err
@@ -27,11 +27,108 @@ func (r *Root) Validate() error {
 		strings.TrimSpace(r.Interrupt.CheckpointFilePath) == "" {
 		return fmt.Errorf("agentconfig: interrupt.checkpoint_file_path required when checkpoint_backend=file")
 	}
-	if err := r.Agent.validateMode(); err != nil {
+	if err := r.validateMode(); err != nil {
+		return err
+	}
+	if err := r.validateAgentsRefs(); err != nil {
 		return err
 	}
 	if err := r.Gateway.validate(); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (r *Root) validateAgentsRefs() error {
+	if len(r.Agents) == 0 {
+		return nil
+	}
+	for id := range r.Agents {
+		if strings.TrimSpace(id) == "" {
+			return fmt.Errorf("agentconfig: agents contains empty id")
+		}
+	}
+	checkIDs := func(field string, ids []string) error {
+		for _, id := range ids {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				continue
+			}
+			if _, ok := r.Agents[id]; !ok {
+				return fmt.Errorf("agentconfig: %s references unknown agent id %q", field, id)
+			}
+		}
+		return nil
+	}
+	if m := r.Modes.Deep; m != nil {
+		if err := checkIDs("modes.deep.agent_ids", m.AgentIDs); err != nil {
+			return err
+		}
+	}
+	if m := r.Modes.Sequential; m != nil {
+		if err := checkIDs("modes.sequential.agent_ids", m.AgentIDs); err != nil {
+			return err
+		}
+	}
+	if m := r.Modes.Parallel; m != nil {
+		if err := checkIDs("modes.parallel.agent_ids", m.AgentIDs); err != nil {
+			return err
+		}
+	}
+	if m := r.Modes.Loop; m != nil {
+		if err := checkIDs("modes.loop.agent_ids", m.AgentIDs); err != nil {
+			return err
+		}
+	}
+	if m := r.Modes.Supervisor; m != nil {
+		if err := checkIDs("modes.supervisor.worker_ids", m.WorkerIDs); err != nil {
+			return err
+		}
+		if strings.TrimSpace(m.SupervisorID) != "" {
+			if _, ok := r.Agents[m.SupervisorID]; !ok {
+				return fmt.Errorf("agentconfig: modes.supervisor.supervisor_id references unknown agent id %q", m.SupervisorID)
+			}
+		}
+	}
+	if m := r.Modes.PlanExecute; m != nil {
+		if err := checkIDs("modes.plan_execute", []string{m.PlannerID, m.ExecutorID, m.ReplannerID}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Root) validateMode() error {
+	switch r.Agent.Mode {
+	case ModeSequential:
+		if r.Modes.Sequential == nil || len(r.Modes.Sequential.AgentIDs) == 0 {
+			return fmt.Errorf("agentconfig: modes.sequential.agent_ids required when agent.mode=sequential")
+		}
+	case ModeParallel:
+		if r.Modes.Parallel == nil || len(r.Modes.Parallel.AgentIDs) == 0 {
+			return fmt.Errorf("agentconfig: modes.parallel.agent_ids required when agent.mode=parallel")
+		}
+	case ModeLoop:
+		if r.Modes.Loop == nil || len(r.Modes.Loop.AgentIDs) == 0 {
+			return fmt.Errorf("agentconfig: modes.loop.agent_ids required when agent.mode=loop")
+		}
+	case ModeSupervisor:
+		if r.Modes.Supervisor == nil || strings.TrimSpace(r.Modes.Supervisor.SupervisorID) == "" || len(r.Modes.Supervisor.WorkerIDs) == 0 {
+			return fmt.Errorf("agentconfig: modes.supervisor.supervisor_id and worker_ids are required when agent.mode=supervisor")
+		}
+	case ModePlanExecute:
+		if r.Modes.PlanExecute == nil {
+			return fmt.Errorf("agentconfig: modes.plan_execute required when agent.mode=plan_execute")
+		}
+		pe := r.Modes.PlanExecute
+		if strings.TrimSpace(pe.PlannerID) == "" || strings.TrimSpace(pe.ExecutorID) == "" {
+			return fmt.Errorf("agentconfig: modes.plan_execute.planner_id and executor_id are required")
+		}
+		if strings.TrimSpace(pe.ReplannerID) == "" {
+			pe.ReplannerID = pe.PlannerID
+		}
+	case ModeCustom:
+		// script 可空：未配置时由运行时占位 Agent / TUI 创建模式处理。
 	}
 	return nil
 }
@@ -108,34 +205,6 @@ func (a *AgentSpec) validate() error {
 		if a.Tools.Filesystem.Shell && a.Tools.Filesystem.StreamingShell {
 			return fmt.Errorf("agentconfig: filesystem.shell and filesystem.streaming_shell are mutually exclusive")
 		}
-	}
-	return nil
-}
-
-func (a *AgentSpec) validateMode() error {
-	switch a.Mode {
-	case ModeSequential, ModeParallel, ModeLoop:
-		if a.ModeConfig == nil || len(a.ModeConfig.SubAgentNames) == 0 {
-			return fmt.Errorf("agentconfig: agent.mode_config.sub_agent_names required for mode %q", a.Mode)
-		}
-	case ModeSupervisor:
-		if a.ModeConfig == nil || a.ModeConfig.Supervisor == nil ||
-			strings.TrimSpace(a.ModeConfig.Supervisor.SupervisorAgentName) == "" {
-			return fmt.Errorf("agentconfig: mode_config.supervisor.supervisor_agent required for supervisor mode")
-		}
-		if len(a.ModeConfig.SubAgentNames) == 0 {
-			return fmt.Errorf("agentconfig: mode_config.sub_agent_names required for supervisor mode")
-		}
-	case ModePlanExecute:
-		if a.ModeConfig == nil || a.ModeConfig.PlanExecute == nil {
-			return fmt.Errorf("agentconfig: mode_config.plan_execute required for plan_execute mode")
-		}
-		pe := a.ModeConfig.PlanExecute
-		if strings.TrimSpace(pe.PlannerName) == "" || strings.TrimSpace(pe.ExecutorName) == "" || strings.TrimSpace(pe.ReplannerName) == "" {
-			return fmt.Errorf("agentconfig: plan_execute planner, executor, replanner names are required")
-		}
-	case ModeCustom:
-		// custom_script 可空：未配置时由运行时占位 Agent / TUI 创建模式处理。
 	}
 	return nil
 }

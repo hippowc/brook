@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/cloudwego/eino/adk"
-	"github.com/cloudwego/eino/compose"
 	einomodel "github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"go.starlark.net/starlark"
 
@@ -32,7 +32,10 @@ type agentsYAML struct {
 }
 
 func buildCustom(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseChatModel, bundle *agentfs.BackendBundle, extra []adk.ChatModelAgentMiddleware) (adk.Agent, error) {
-	script := strings.TrimSpace(root.Agent.CustomScript)
+	script := ""
+	if root.CustomMode() != nil {
+		script = strings.TrimSpace(root.CustomMode().Script)
+	}
 	if script == "" {
 		return newPendingCustomAgent(root, "empty"), nil
 	}
@@ -43,7 +46,10 @@ func buildCustom(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseC
 		return nil, fmt.Errorf("agent: custom_script %q: %w", script, err)
 	}
 	bundleRoot := filepath.Dir(script)
-	agentsPath := strings.TrimSpace(root.Agent.CustomAgentsFile)
+	agentsPath := ""
+	if root.CustomMode() != nil {
+		agentsPath = strings.TrimSpace(root.CustomMode().AgentsFile)
+	}
 	if agentsPath == "" {
 		agentsPath = filepath.Join(bundleRoot, "agents.yaml")
 	} else if !filepath.IsAbs(agentsPath) {
@@ -73,13 +79,13 @@ func buildCustom(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseC
 		}
 		inst := strings.TrimSpace(def.Instruction)
 		cfg := &adk.ChatModelAgentConfig{
-			Name:            name,
-			Description:     root.Agent.Description + " / " + id,
-			Instruction:     inst,
-			Model:           cm,
-			MaxIterations:   root.Agent.MaxIterations,
-			Handlers:        chatHandlers(bundle, extra),
-			OutputKey:       root.Memory.OutputKey,
+			Name:          name,
+			Description:   root.Agent.Description + " / " + id,
+			Instruction:   inst,
+			Model:         cm,
+			MaxIterations: root.Agent.MaxIterations,
+			Handlers:      chatHandlers(bundle, extra),
+			OutputKey:     root.Memory.OutputKey,
 			ToolsConfig: adk.ToolsConfig{
 				ToolsNodeConfig: compose.ToolsNodeConfig{},
 				ReturnDirectly:  root.Agent.Tools.ReturnDirectly,
@@ -96,8 +102,8 @@ func buildCustom(ctx context.Context, root *agentconfig.Root, cm einomodel.BaseC
 	}
 
 	seed := int64(1)
-	if root.Agent.CustomParams != nil {
-		if v, ok := root.Agent.CustomParams["random_seed"]; ok {
+	if root.CustomMode() != nil && root.CustomMode().Params != nil {
+		if v, ok := root.CustomMode().Params["random_seed"]; ok {
 			switch t := v.(type) {
 			case int:
 				seed = int64(t)
@@ -225,16 +231,20 @@ func lastUserPlainText(msgs []adk.Message) string {
 }
 
 func (h *starlarkHost) predeclared(state *starlark.Dict) starlark.StringDict {
-	cfgVal, _ := goToStarlarkValue(h.root.Agent.CustomParams)
+	params := map[string]any{}
+	if h.root.CustomMode() != nil && h.root.CustomMode().Params != nil {
+		params = h.root.CustomMode().Params
+	}
+	cfgVal, _ := goToStarlarkValue(params)
 	if cfgVal == nil {
 		cfgVal = starlark.NewDict(0)
 	}
 	d := starlark.StringDict{
-		"cfg":   cfgVal,
-		"state": state,
-		"call":  starlark.NewBuiltin("call", h.builtinCall),
-		"read_text": starlark.NewBuiltin("read_text", h.builtinReadText),
-		"load_yaml": starlark.NewBuiltin("load_yaml", h.builtinLoadYAML),
+		"cfg":          cfgVal,
+		"state":        state,
+		"call":         starlark.NewBuiltin("call", h.builtinCall),
+		"read_text":    starlark.NewBuiltin("read_text", h.builtinReadText),
+		"load_yaml":    starlark.NewBuiltin("load_yaml", h.builtinLoadYAML),
 		"rand_shuffle": starlark.NewBuiltin("rand_shuffle", h.builtinRandShuffle),
 	}
 	return d
@@ -529,7 +539,10 @@ func newPendingCustomAgent(root *agentconfig.Root, reason string) adk.Agent {
 	case "empty":
 		body = "当前为 custom 模式，但尚未配置 agent.custom_script。\n请在 agent.yaml 中设置指向 .star 文件的路径，或在 Brook TUI 中使用「/custom build」进入创建模式。"
 	case "missing":
-		p := strings.TrimSpace(root.Agent.CustomScript)
+		p := ""
+		if root.CustomMode() != nil {
+			p = strings.TrimSpace(root.CustomMode().Script)
+		}
 		body = fmt.Sprintf("custom_script 配置的路径不存在：%s\n请修正路径或改用「/custom build」在 TUI 中生成编排。", p)
 	default:
 		body = reason

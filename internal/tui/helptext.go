@@ -1,23 +1,26 @@
 package tui
 
-// TUIHelpText 为输入 /help 时展示的简短说明（完整文档见仓库 doc/agent-configuration-guide.md）。
+// TUIHelpText 为输入 /help 时展示的简短说明。
 const TUIHelpText = `Brook TUI 内置命令（在输入框输入）：
   /help          本说明
   /config        用编辑器打开当前 agent.yaml
-  /new           开始新会话（新对话存档）
-  /agent mode X  切换 agent.mode，并写入该模式默认 mode_config（占位名）后写回文件（X 见下表）
+  /session new   开始新会话（新对话存档）
+  /session list  列出最近会话（含短 ID、名称、预览）
+  /session open <id|前缀>  打开已有会话
+  /session rename <名称>   给当前会话重命名
+  /agent mode X  切换 agent.mode，并补齐该模式最小配置到 modes.*（X 见下表）
   /custom build  仅当 agent.mode=custom：进入「创建」模式，用 LLM 辅助编写 Starlark / agents.yaml
-  /custom run    回到「使用」模式（按 custom_script 编排对话）
+  /custom run    回到「使用」模式（按 modes.custom.script 编排对话）
 
-agent.mode 一览（切换时会覆盖 mode_config 为内置占位，可按需再编辑 YAML）：
-  react          单 Agent ReAct，mode_config 置空
-  deep           DeepAgents；mode_config 置空，可自配 deep / sub_agent_names
-  sequential     写入占位 sub_agent_names（顺序执行）
-  parallel       同上（并行）
-  loop           占位 sub_agent_names + loop_max_iterations
-  supervisor     占位 supervisor + sub_agent_names
-  plan_execute   占位 planner / executor / replanner
-  custom         不强制写入路径；未配置脚本时 TUI 自动进入「创建」模式（/custom build / /custom run）
+agent.mode 一览（具体参数在 modes.<mode> 下）：
+  react          单 Agent ReAct
+  deep           DeepAgents（可选 modes.deep.agent_ids）
+  sequential     顺序执行 modes.sequential.agent_ids
+  parallel       并行执行 modes.parallel.agent_ids
+  loop           循环执行 modes.loop.agent_ids
+  supervisor     调度 modes.supervisor.supervisor_id + worker_ids
+  plan_execute   使用 modes.plan_execute planner/executor/replanner
+  custom         使用 modes.custom.script / agents_file
 
-更全说明：若持有源码，见 doc/agent-configuration-guide.md、config/agent.example.yaml 与 config/examples/custom/README.md。
+更全说明：config/docs/agent-configuration-guide.md、config/agent.example.yaml 与 config/examples/custom/README.md。
 `

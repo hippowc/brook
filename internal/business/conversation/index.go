@@ -14,6 +14,7 @@ const maxIndexEntries = 64
 // IndexEntry 用于在 conversations 目录下列出最近会话（可选）。
 type IndexEntry struct {
 	ID        string    `json:"id"`
+	Name      string    `json:"name,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Preview   string    `json:"preview,omitempty"`
 	Config    string    `json:"config_path,omitempty"`
@@ -25,7 +26,7 @@ type Index struct {
 }
 
 // UpdateIndex 在保存某会话后刷新索引（按时间倒序，截断条数）。
-func UpdateIndex(convDir, id, configPath, preview string) error {
+func UpdateIndex(convDir, id, name, configPath, preview string) error {
 	if convDir == "" || id == "" {
 		return nil
 	}
@@ -42,7 +43,7 @@ func UpdateIndex(convDir, id, configPath, preview string) error {
 			break
 		}
 	}
-	ent := IndexEntry{ID: id, UpdatedAt: now, Preview: preview, Config: configPath}
+	ent := IndexEntry{ID: id, Name: name, UpdatedAt: now, Preview: preview, Config: configPath}
 	if found >= 0 {
 		idx.Conversations[found] = ent
 	} else {
@@ -63,4 +64,24 @@ func UpdateIndex(convDir, id, configPath, preview string) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// LoadIndex 读取会话索引；不存在时返回空索引。
+func LoadIndex(convDir string) (*Index, error) {
+	if convDir == "" {
+		return &Index{}, nil
+	}
+	path := filepath.Join(convDir, indexFile)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &Index{}, nil
+		}
+		return nil, err
+	}
+	var idx Index
+	if err := json.Unmarshal(b, &idx); err != nil {
+		return nil, err
+	}
+	return &idx, nil
 }

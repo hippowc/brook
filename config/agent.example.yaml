@@ -1,22 +1,17 @@
-# 与 pkg/agentconfig 对齐的示例配置（复制为 agent.yaml 并按环境修改）
-#
-# 模式与 mode_config 详解：doc/agent-configuration-guide.md
-# 源码字段定义：pkg/agentconfig/types.go、校验：pkg/agentconfig/validate.go
+# Brook 配置示例（v2）
+# 详见 config/docs/agent-configuration-guide.md
 
-version: "1"
+version: "2"
 
 agent:
   mode: react
   name: "brook-assistant"
-  description: "可配置示例 Agent（ReAct + 本地文件工具）"
-  # instruction / user_prompt：可写多行文本；若整段为 @路径 则加载该文件内容（Markdown 等），路径相对 agent.yaml 所在目录或绝对路径。
-  # 示例：instruction: "@prompts/system.md"
+  description: "Brook assistant"
   instruction: |
-    你是 Brook 助手。工作目录为会话配置的工作目录；仅使用已提供的工具完成任务。
+    你是 Brook 助手，请以准确、简洁方式响应。
   user_prompt: ""
   max_iterations: 24
-  working_directory: "/tmp/brook-workspace"
-
+  working_directory: "/absolute/path/to/workspace"
   tools:
     filesystem:
       enabled: true
@@ -24,75 +19,78 @@ agent:
       shell: true
       streaming_shell: false
       local:
-        # true 时仅允许少量 shell 命令（含 find/head/tail 等，便于 Deep 模式遍历仓库）；需任意命令请改为 false
         strict_commands: true
     return_directly: {}
-
   middlewares: []
 
-  mode_config: null
+agents:
+  writer:
+    name: writer
+    instruction: "你负责起草方案"
+  reviewer:
+    name: reviewer
+    instruction: "你负责评审方案"
+  planner:
+    name: planner
+    instruction: "你负责规划"
+  executor:
+    name: executor
+    instruction: "你负责执行"
+
+modes:
+  deep:
+    agent_ids: [writer, reviewer]
+  sequential:
+    agent_ids: [writer, reviewer]
+  parallel:
+    agent_ids: [writer, reviewer]
+  loop:
+    agent_ids: [writer]
+    max_iterations: 3
+  supervisor:
+    supervisor_id: planner
+    worker_ids: [writer, reviewer]
+  plan_execute:
+    planner_id: planner
+    executor_id: executor
+    replanner_id: planner
+  custom:
+    script: "@./custom/orchestrate.star"
+    agents_file: "@./custom/agents.yaml"
+    params:
+      random_seed: 1
 
 models:
   providers:
     openai:
       driver: openai
-      api_key_env: "OPENAI_API_KEY"
-      base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      api_key_env: OPENAI_API_KEY
+      base_url: ""
       extra:
         temperature: 0.2
-    ollama:
-      driver: ollama
-      api_key_env: ""
-      base_url: "http://127.0.0.1:11434"
-      extra: {}
-
   active:
     provider: openai
-    model: "qwen3.5-flash"
+    model: gpt-4o-mini
 
 memory:
-  # session_store=file 时须填写绝对路径；持久化到用户目录可设为例如 /Users/you/.brook/session
   session_store: file
-  session_file_path: "/tmp/brook-session"
-  # TUI 多轮对话：注入模型前对消息条数做尾部裁剪（0 表示不裁剪）。存档仍完整写入 ~/.brook/conversations/<uuid>.json
+  session_file_path: "/absolute/path/to/.brook/session.json"
   max_context_messages: 50
-  output_key: "last_answer"
+  output_key: last_answer
 
 observability:
   global_handlers: []
-  log_level: "info"
+  log_level: info
 
 interrupt:
   enabled: true
   checkpoint_backend: file
-  checkpoint_file_path: "/tmp/brook-checkpoints"
+  checkpoint_file_path: "/absolute/path/to/.brook/checkpoints"
 
 a2ui:
   enabled: false
   version: "0.8"
 
-# gateway：HTTP 接入；启用后运行 `brook gateway`（与 TUI / brook cli 共用本配置）
 gateway:
   enabled: false
   listen: ":8787"
-  read_header_timeout_seconds: 10
-  read_timeout_seconds: 120
-  write_timeout_seconds: 720
-  shutdown_timeout_seconds: 30
-  max_request_body_bytes: 1048576
-  query_timeout_seconds: 600
-  auth:
-    mode: none
-    # mode: bearer
-    # bearer_token_env: "BROOK_GATEWAY_TOKEN"
-    # mode: hmac
-    # hmac_secret_env: "BROOK_GATEWAY_HMAC_SECRET"
-    # hmac_max_skew_seconds: 300
-  rate_limit:
-    enabled: false
-    requests_per_minute: 120
-    burst: 30
-  session:
-    store: file
-    # 留空则使用 ~/.brook/gateway/sessions；自定义须为绝对路径
-    file_dir: ""

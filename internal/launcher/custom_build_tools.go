@@ -15,7 +15,7 @@ import (
 )
 
 // normalizePathUnderCustomDir 去掉误传的 custom/ 前缀：写入根目录已是 ~/.brook/custom，
-// 若再传 custom/orchestrate.star 会变成 ~/.brook/custom/custom/orchestrate.star，与 agent.custom_script=@./custom/orchestrate.star 不一致。
+// 若再传 custom/orchestrate.star 会变成 ~/.brook/custom/custom/orchestrate.star，与 modes.custom.script=@./custom/orchestrate.star 不一致。
 func normalizePathUnderCustomDir(rel string) string {
 	rel = filepath.ToSlash(strings.TrimSpace(rel))
 	rel = filepath.Clean(rel)
@@ -40,8 +40,8 @@ type saveCustomFileResult struct {
 }
 
 type activateCustomBundleParams struct {
-	CustomScriptRef string `json:"custom_script_ref" jsonschema:"description=写入主配置 agent.custom_script，相对 agent.yaml 所在目录；推荐 @./custom/orchestrate.star"`
-	CustomAgentsRef string `json:"custom_agents_file_ref" jsonschema:"description=可选，写入 agent.custom_agents_file，推荐 @./custom/agents.yaml"`
+	CustomScriptRef string `json:"custom_script_ref" jsonschema:"description=写入主配置 modes.custom.script，相对 agent.yaml 所在目录；推荐 @./custom/orchestrate.star"`
+	CustomAgentsRef string `json:"custom_agents_file_ref" jsonschema:"description=可选，写入 modes.custom.agents_file，推荐 @./custom/agents.yaml"`
 }
 
 type activateCustomBundleResult struct {
@@ -98,7 +98,7 @@ func newCustomBuildTools(agentYAMLPath string) ([]tool.BaseTool, error) {
 	agentPath := strings.TrimSpace(agentYAMLPath)
 	actT, err := toolutils.InferTool(
 		"activate_custom_bundle",
-		"更新主 agent.yaml：设置 agent.custom_script（及可选 custom_agents_file）为相对路径，使 Brook 从 ~/.brook/custom/ 加载 bundle。通常在 save_custom_file 写入 orchestrate.star 与 agents.yaml 后调用。",
+		"更新主 agent.yaml：设置 modes.custom.script（及可选 custom_agents_file）为相对路径，使 Brook 从 ~/.brook/custom/ 加载 bundle。通常在 save_custom_file 写入 orchestrate.star 与 agents.yaml 后调用。",
 		func(ctx context.Context, in activateCustomBundleParams) (activateCustomBundleResult, error) {
 			_ = ctx
 			p := agentPath
@@ -146,8 +146,19 @@ func patchAgentYAMLCustomRefs(agentYAMLPath, customScriptRef, customAgentsRef st
 	if !ok {
 		return fmt.Errorf("agent yaml: missing agent section")
 	}
-	agent["custom_script"] = customScriptRef
-	agent["custom_agents_file"] = customAgentsRef
+	modes, _ := doc["modes"].(map[string]any)
+	if modes == nil {
+		modes = map[string]any{}
+	}
+	custom, _ := modes["custom"].(map[string]any)
+	if custom == nil {
+		custom = map[string]any{}
+	}
+	custom["script"] = customScriptRef
+	custom["agents_file"] = customAgentsRef
+	modes["custom"] = custom
+	doc["modes"] = modes
+	agent["mode"] = "custom"
 	doc["agent"] = agent
 	out, err := yaml.Marshal(doc)
 	if err != nil {

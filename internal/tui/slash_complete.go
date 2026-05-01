@@ -6,7 +6,7 @@ import (
 	"github.com/hippowc/brook/pkg/agentconfig"
 )
 
-var slashTopLevel = []string{"/agent", "/config", "/custom", "/help", "/new"}
+var slashTopLevel = []string{"/agent", "/config", "/custom", "/help", "/session"}
 
 // setSlashCompletion 写入补全结果并把光标移到行尾（textinput.SetValue 在光标位于中间时不会自动移到末尾）。
 func (m *Model) setSlashCompletion(s string) {
@@ -94,7 +94,7 @@ func (m *Model) applySlashTabCompletion() bool {
 			if len(modes) == 0 {
 				return false
 			}
-			m.setSlashCompletion(leading + "/agent mode "+modes[0] + " ")
+			m.setSlashCompletion(leading + "/agent mode " + modes[0] + " ")
 			return true
 		}
 		// 补全子命令 mode

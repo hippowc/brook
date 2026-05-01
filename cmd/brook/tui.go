@@ -61,8 +61,8 @@ func runTUI(args []string) {
 	}
 
 	m := tui.New(rt, cfgPath, convID)
-	// 不使用 WithMouseCellMotion：避免终端启用鼠标报告协议后无法顺畅用光标拖选文本（原生选区被应用抢占）。
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	// 启用鼠标单元格事件：用于在主会话区拖动选区（配合 Ctrl+Shift+C / Alt+C 复制）。
+	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	final, err := p.Run()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tui: %v\n", err)

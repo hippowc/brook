@@ -106,7 +106,7 @@ brook cli -query "总结当前目录下的 README"
 brook gateway -config /path/to/agent.yaml
 ```
 
-监听地址、鉴权、会话存储等均在 YAML 的 **`gateway`** 段配置；详见 [`doc/agent-configuration-guide.md`](doc/agent-configuration-guide.md) 中网关章节。
+监听地址、鉴权、会话存储等均在 YAML 的 **`gateway`** 段配置；详见 [`config/docs/agent-configuration-guide.md`](config/docs/agent-configuration-guide.md) 中网关章节。
 
 ---
 
@@ -118,7 +118,7 @@ brook gateway -config /path/to/agent.yaml
 - 首次运行会自动准备 `~/.brook/` 下的默认文件；也可复制 [`config/agent.example.yaml`](config/agent.example.yaml) 后改路径与模型。
 - 模型 API Key 等：在 YAML 的 `models.providers.*.api_key_env` 里配置环境变量名（如 `OPENAI_API_KEY`），在运行前 export 即可。
 
-更全字段说明：[`doc/agent-configuration-guide.md`](doc/agent-configuration-guide.md)。
+更全字段说明：[`config/docs/agent-configuration-guide.md`](config/docs/agent-configuration-guide.md)。
 
 ### 2. TUI 里能做什么（输入框命令）
 
@@ -128,10 +128,13 @@ brook gateway -config /path/to/agent.yaml
 |------|------|
 | `/help` | 简短说明 |
 | `/config` | 打开当前 `agent.yaml` 的编辑器视图 |
-| `/new` | 新会话（新 UUID，存档在 `~/.brook/conversations/`） |
-| `/agent mode <模式>` | 切换 **`agent.mode`**，并写入该模式默认 **`mode_config` 占位** 后保存到文件；之后可按需再改 YAML |
+| `/session new` | 新会话（新 UUID，存档在 `~/.brook/conversations/`） |
+| `/session list` | 列出最近会话（短 ID / 名称 / 预览） |
+| `/session open <id|前缀>` | 打开历史会话 |
+| `/session rename <名称>` | 重命名当前会话，便于标记 |
+| `/agent mode <模式>` | 切换 `agent.mode`，并补齐该模式最小配置到 `modes.<mode>`；需要多角色时请在 `agents` 中定义后由模式引用 |
 | `/custom build` | **仅**在 `agent.mode=custom` 时：进入「创建」模式，用 LLM 辅助写 **Starlark** / **`agents.yaml`** 并落盘 |
-| `/custom run` | 回到按 **`custom_script`** 编排的「使用」模式；会从磁盘**重新加载**配置 |
+| `/custom run` | 回到按 `modes.custom.script` 编排的「使用」模式；会从磁盘重新加载配置 |
 
 会话与当前会话指针由 Brook 管理；多轮内容会持久化到 `~/.brook/conversations/<uuid>.json`（具体见实现与文档）。
 
@@ -149,7 +152,7 @@ brook gateway -config /path/to/agent.yaml
 | `plan_execute` | Planner / Executor / Replanner |
 | **`custom`** | **Starlark 脚本**编排 + **`agents.yaml`** 定义子 Agent；由脚本里的 `call(agent_id, content)` 调用模型子 Agent |
 
-切换时写入的 **`mode_config` 多为占位**，复杂编排请再编辑 `agent.yaml` 或配合 `custom` 的脚本与 agents 文件。
+切换时会补齐该模式最小模板到 `modes.*`，复杂编排请编辑 `agents` 与对应 `modes.<mode>`。
 
 ### 4. **`custom` 模式（重点）**
 
@@ -157,13 +160,16 @@ brook gateway -config /path/to/agent.yaml
 
 #### 4.1 在 YAML 里怎么配
 
-在 `agent` 下设置：
+在 `agent` + `modes.custom` 下设置：
 
 ```yaml
 agent:
   mode: custom
-  custom_script: "@./custom/orchestrate.star"       # 相对路径相对 agent.yaml 所在目录
-  custom_agents_file: "@./custom/agents.yaml"       # 可省略：默认用与脚本同目录下的 agents.yaml
+
+modes:
+  custom:
+    script: "@./custom/orchestrate.star"            # 相对路径相对 agent.yaml 所在目录
+    agents_file: "@./custom/agents.yaml"            # 可省略：默认同目录 agents.yaml
 ```
 
 脚本与 agents 的常见落盘位置：**`~/.brook/custom/`**（与 `@./custom/...` 引用一致）。路径展开规则见 [`pkg/agentconfig/atfile.go`](pkg/agentconfig/atfile.go) 中 `@` 引用说明。
@@ -182,18 +188,26 @@ agent:
 #### 4.3 在 TUI 里怎么用 `custom`
 
 1. 将 `agent.mode` 设为 **`custom`**（`/agent mode custom` 或手改 YAML）。
-2. 若尚未配置可用的 **`custom_script`**（或文件不存在），TUI 会**自动进入「创建」模式**，提示你用 **`/custom build`**。
-3. **`/custom build`**：由内置 LLM 助手通过工具 **`save_custom_file`**、**`activate_custom_bundle`** 把 `orchestrate.star`、`agents.yaml` 写到 **`~/.brook/custom/`**，并更新主配置里的 `custom_script` / `custom_agents_file`。
+2. 若尚未配置可用的 `modes.custom.script`（或文件不存在），TUI 会自动进入「创建」模式，提示你用 `/custom build`。
+3. `/custom build`：由内置 LLM 助手通过 `save_custom_file`、`activate_custom_bundle` 把 `orchestrate.star`、`agents.yaml` 写到 `~/.brook/custom/`，并更新主配置里的 `modes.custom.script / modes.custom.agents_file`。
 4. 编排就绪后执行 **`/custom run`**：切回「使用」模式，并从磁盘 **重新加载** `agent.yaml`（使新路径生效）。
 
 **注意（路径）**：`save_custom_file` 的相对路径是相对于 **`~/.brook/custom/`** 根目录的，应写 `orchestrate.star`、`agents.yaml` 等，**不要**再套一层 `custom/`，否则会落到 `~/.brook/custom/custom/...`，与主配置里的 `@./custom/orchestrate.star` 不一致。
 
-#### 4.4 滚动与复制（TUI）
+#### 4.4 滚动、选区与复制 / 粘贴（TUI）
 
-为便于终端里**鼠标拖选复制**历史，当前未启用「鼠标单元格追踪」（否则常见终端里拖拽会被应用抢走）。
+Brook 在主会话区启用**应用内拖选**（需终端向程序上报鼠标事件）。
 
-- **滚动**：`PgUp` / `PgDn`，`Ctrl+U` / `Ctrl+D`；输入框为空时 **`↑` / `↓`** 或 **`Ctrl+P` / `Ctrl+N`** 逐行滚动；**生成中**也可用上述键滚动历史。
-- **复制**：未在生成中时 **`Ctrl+C`** 将当前会话 transcript 写入剪贴板；生成中 **`Ctrl+C`** / **`Esc`** 为取消生成。
+- **滚动**：鼠标滚轮；以及键盘 `PgUp` / `PgDn`、`Ctrl+U` / `Ctrl+D`；输入框为空时 **`↑` / `↓`**、`Ctrl+P` / `Ctrl+N`。**生成中**仍可用上述键滚动。
+- **选中**：在会话显示区内按住鼠标左键拖动；选中范围会以反色高亮。
+- **复制选中内容**（无选中则不写入剪贴板）：
+  - **macOS**：显示为 **`Cmd+C`**（程序侧接收 `Alt/Meta+C` 映射；是否可直接按 Cmd 取决于终端是否转发 Cmd 组合键）
+  - **Linux / Windows**：**`Ctrl+Shift+C`**
+- **粘贴到输入框**：
+  - **macOS**：显示为 **`Cmd+V`**（程序侧接收 `Alt/Meta+V` 映射）
+  - **Linux / Windows**：**`Ctrl+V`**
+
+说明：终端是否把 **Cmd** 组合键发给 TUI 由终端设置决定；若未转发，可在终端里将 Cmd 映射为 Meta/Alt，或直接使用平台默认的 Ctrl 组合键。
 
 ---
 

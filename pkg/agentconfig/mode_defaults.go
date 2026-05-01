@@ -1,79 +1,48 @@
 package agentconfig
 
-import "gopkg.in/yaml.v3"
-
-// DefaultModeConfig 在通过 TUI/CLI 切换 agent.mode 时使用的占位配置，保证校验通过且可运行；
-// 子 Agent 名称为示例，用户应按业务在 agent.yaml 中改名或增删。
-func DefaultModeConfig(mode AgentMode) *ModeConfig {
+// DefaultModeState 切换 agent.mode 时补齐对应模式最小配置（仅该模式，不覆盖其他模式）。
+func DefaultModeState(mode AgentMode) (modes ModesSpec, agents map[string]SubAgentSpec) {
+	agents = map[string]SubAgentSpec{}
 	switch mode {
-	case ModeReAct, ModeDeep:
-		return nil
-	case ModeSequential, ModeParallel:
-		return &ModeConfig{
-			SubAgentNames: []string{"step-a", "step-b"},
-		}
+	case ModeSequential:
+		agents["step_a"] = SubAgentSpec{Name: "step_a", Instruction: "你是子步骤 A"}
+		agents["step_b"] = SubAgentSpec{Name: "step_b", Instruction: "你是子步骤 B"}
+		modes.Sequential = &SequentialModeConfig{AgentIDs: []string{"step_a", "step_b"}}
+	case ModeParallel:
+		agents["step_a"] = SubAgentSpec{Name: "step_a", Instruction: "你是并行子步骤 A"}
+		agents["step_b"] = SubAgentSpec{Name: "step_b", Instruction: "你是并行子步骤 B"}
+		modes.Parallel = &ParallelModeConfig{AgentIDs: []string{"step_a", "step_b"}}
 	case ModeLoop:
-		return &ModeConfig{
-			SubAgentNames:     []string{"step-a", "step-b"},
-			LoopMaxIterations: 5,
-		}
+		agents["loop_worker"] = SubAgentSpec{Name: "loop_worker", Instruction: "你是循环处理子 Agent"}
+		modes.Loop = &LoopModeConfig{AgentIDs: []string{"loop_worker"}, MaxIterations: 5}
 	case ModeSupervisor:
-		return &ModeConfig{
-			Supervisor: &SupervisorModeConfig{
-				SupervisorAgentName: "supervisor",
-			},
-			SubAgentNames: []string{"supervisor", "worker1"},
-		}
+		agents["supervisor"] = SubAgentSpec{Name: "supervisor", Instruction: "你负责调度 worker"}
+		agents["worker_1"] = SubAgentSpec{Name: "worker_1", Instruction: "你是 worker 1"}
+		modes.Supervisor = &SupervisorModeConfig{SupervisorID: "supervisor", WorkerIDs: []string{"worker_1"}}
 	case ModePlanExecute:
-		return &ModeConfig{
-			PlanExecute: &PlanExecuteModeConfig{
-				PlannerName:   "planner",
-				ExecutorName:  "executor",
-				ReplannerName: "replanner",
-			},
-		}
+		agents["planner"] = SubAgentSpec{Name: "planner", Instruction: "你负责规划"}
+		agents["executor"] = SubAgentSpec{Name: "executor", Instruction: "你负责执行"}
+		modes.PlanExecute = &PlanExecuteModeConfig{PlannerID: "planner", ExecutorID: "executor", ReplannerID: "planner"}
+	case ModeDeep:
+		modes.Deep = &DeepModeConfig{}
 	case ModeCustom:
-		return nil
-	default:
-		return nil
+		modes.Custom = &CustomModeConfig{}
 	}
+	if len(agents) == 0 {
+		agents = nil
+	}
+	return modes, agents
 }
 
-// ModeConfigYAMLMap 将 DefaultModeConfig 转为可写入 YAML 根文档的 map；nil 表示写入 mode_config: null。
-func ModeConfigYAMLMap(mode AgentMode) (map[string]any, error) {
-	mc := DefaultModeConfig(mode)
-	if mc == nil {
-		return nil, nil
-	}
-	b, err := yaml.Marshal(mc)
-	if err != nil {
-		return nil, err
-	}
-	var m map[string]any
-	if err := yaml.Unmarshal(b, &m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// ModeSwitchUserHint 切换模式后展示给用户的说明（占位名与文档指引）。
 func ModeSwitchUserHint(mode AgentMode) string {
 	switch mode {
-	case ModeSequential, ModeParallel:
-		return "本次切换已重写 mode_config。当前为占位 sub_agent_names（step-a、step-b）；请按流水线角色改名或增删。详见 doc/agent-configuration-guide.md。"
-	case ModeLoop:
-		return "本次切换已重写 mode_config。当前含 sub_agent_names 与 loop_max_iterations 占位；可按需调整。详见 doc/agent-configuration-guide.md。"
-	case ModeSupervisor:
-		return "本次切换已重写 mode_config。当前为 supervisor + worker1 占位；请按实际角色修改。详见 doc/agent-configuration-guide.md。"
-	case ModePlanExecute:
-		return "本次切换已重写 mode_config。当前为 planner/executor/replanner 占位；三名须彼此区分。详见 doc/agent-configuration-guide.md。"
+	case ModeSequential, ModeParallel, ModeLoop, ModeSupervisor, ModePlanExecute:
+		return "已切换模式，并补齐该模式最小配置到 modes.*；子 Agent 定义位于顶层 agents。"
 	case ModeDeep:
-		return "本次切换已清空 mode_config（Deep 可用默认）；可选配置 mode_config.deep 与 sub_agent_names。详见 doc/agent-configuration-guide.md。"
-	case ModeReAct:
-		return "本次切换已清空 mode_config（ReAct 无需子 Agent）。"
+		return "已切换到 deep。deep 不强制要求子 Agent；可在 modes.deep.agent_ids 配置。"
 	case ModeCustom:
-		return "已切换为 custom。可稍后在 agent.yaml 填写 custom_script；未就绪时 TUI 会进入「创建」模式。示例见 config/examples/custom/README.md。"
+		return "已切换到 custom。请在 modes.custom.script / modes.custom.agents_file 填写路径，或用 /custom build 生成。"
 	default:
-		return "已更新 mode_config；详见 doc/agent-configuration-guide.md。"
+		return "已切换模式。"
 	}
 }
