@@ -40,7 +40,7 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 3. 可选：`config/<实践>.sh`（配置实践）、`usage.md`（用法速查）
 4. 实测：隔离 HOME 跑一遍 install（见下节）
 
-**红线：资产命名必须实测，不许猜。**
+资产命名必须实测，不许猜。
 
 ### 新增配置实践
 
@@ -60,10 +60,9 @@ export HOME=/tmp/brook-test-home && mkdir -p $HOME   # 隔离环境
 bash -n brook lib/*.sh tools/*/config/*.sh             # 语法检查
 ```
 
-## 约定与红线
+## 约定
 
 - commit message：中文，`brook: xxx` 前缀
-- **README 不罗列全部工具，不点名展示任何具体工具的敏感用途**；工具清单以 `brook list` 输出为准
 - 兜底链触发 = 上游改名信号，事后必须更新 tool.conf 主映射
 - 不引入 bash 4+ 语法（无关联数组、无 ${var,,}，占位符替换用 sed）
 - 本仓库经历过两次推翻重建（向导式 → 安装器 → 按工具内聚），旧历史内容不代表当前设计
