@@ -49,7 +49,7 @@ installed_tag_of() {
 binaries_present() {
   local tool="$1" b
   # shellcheck source=/dev/null
-  source "$BROOK_HOME/registry/$tool.conf"
+  source "$BROOK_HOME/tools/$tool/tool.conf"
   for b in $BINARIES; do
     [ -x "$BROOK_BIN_DIR/$b" ] || return 1
   done
@@ -269,12 +269,12 @@ do_status() {
     fi
   done
   fn="$(printf '%s' "$tool" | tr '-' '_')"
-  if [ -f "$BROOK_HOME/hooks/$tool.sh" ]; then
+  if [ -f "$BROOK_HOME/tools/$tool/config.sh" ]; then
     # shellcheck source=/dev/null
-    source "$BROOK_HOME/hooks/$tool.sh"
+    source "$BROOK_HOME/tools/$tool/config.sh"
     if declare -f "${fn}_config_status" >/dev/null; then "${fn}_config_status"; fi
   fi
-  if [ -f "$BROOK_HOME/usage/$tool.md" ]; then
+  if [ -f "$BROOK_HOME/tools/$tool/usage.md" ]; then
     echo "用法:    brook $tool usage（常见用法速查）"
   fi
 }

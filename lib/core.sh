@@ -99,15 +99,15 @@ list_tools() {
   echo "可安装的工具（brook <工具> install，国内建议加 --proxy gh-proxy）："
   echo
   printf '%-16s %-16s %-6s %s\n' "工具" "状态" "配置" "说明"
-  for f in "$BROOK_HOME"/registry/*.conf; do
+  for f in "$BROOK_HOME"/tools/*/tool.conf; do
     [ -e "$f" ] || continue
-    tool="$(basename "$f" .conf)"
+    tool="$(basename "$(dirname "$f")")"
     desc="$(
       # shellcheck source=/dev/null
       source "$f"
       echo "${DESC:-}"
     )"
-    if [ -f "$BROOK_HOME/hooks/$tool.sh" ]; then cfg="✓"; else cfg="-"; fi
+    if [ -f "$BROOK_HOME/tools/$tool/config.sh" ]; then cfg="✓"; else cfg="-"; fi
     tag="$(installed_tag_of "$tool")"
     if [ -n "$tag" ] && binaries_present "$tool"; then
       status="✓ $tag"
@@ -130,7 +130,7 @@ brook_main() {
     list) list_tools ;;
     proxies) list_proxies ;;
     *)
-      local conf="$BROOK_HOME/registry/$cmd.conf"
+      local conf="$BROOK_HOME/tools/$cmd/tool.conf"
       [ -f "$conf" ] || die "未知工具 '$cmd'（brook list 查看可用工具）"
       shift
       local action="${1:-status}"
@@ -156,7 +156,7 @@ brook_main() {
 run_tool() {
   local tool="$1" action="$2" fn
   # shellcheck source=/dev/null
-  source "$BROOK_HOME/registry/$tool.conf"
+  source "$BROOK_HOME/tools/$tool/tool.conf"
   fn="$(printf '%s' "$tool" | tr '-' '_')"
   case "$action" in
     install) do_install "$tool" ;;
@@ -164,23 +164,23 @@ run_tool() {
     status)  do_status "$tool" ;;
     remove)  do_remove "$tool" ;;
     usage)
-      if [ -f "$BROOK_HOME/usage/$tool.md" ]; then
-        cat "$BROOK_HOME/usage/$tool.md"
+      if [ -f "$BROOK_HOME/tools/$tool/usage.md" ]; then
+        cat "$BROOK_HOME/tools/$tool/usage.md"
       else
-        die "$tool 暂无用法文档（欢迎补充 usage/$tool.md）"
+        die "$tool 暂无用法文档（欢迎补充 tools/$tool/usage.md）"
       fi
       ;;
     config)
-      if [ -f "$BROOK_HOME/hooks/$tool.sh" ]; then
+      if [ -f "$BROOK_HOME/tools/$tool/config.sh" ]; then
         # shellcheck source=/dev/null
-        source "$BROOK_HOME/hooks/$tool.sh"
+        source "$BROOK_HOME/tools/$tool/config.sh"
         if declare -f "${fn}_config" >/dev/null; then
           "${fn}_config"
         else
           die "$tool 的钩子未定义 ${fn}_config"
         fi
       else
-        die "$tool 无配置支持（没有 hooks/$tool.sh）"
+        die "$tool 无配置支持（没有 tools/$tool/config.sh）"
       fi
       ;;
     *) die "未知操作 '$action'（可用：install / upgrade / status / config / usage / remove）" ;;

@@ -43,7 +43,17 @@ brook proxies                               # 代理预设
 
 ## 新增一个工具
 
-1. 加 `registry/<名字>.conf`（工具与 release 文件的映射）：
+加一个目录 `tools/<名字>/`，一个目录 = 这个工具的一切：
+
+```
+tools/<名字>/
+├── tool.conf      # release 映射（必须）
+├── config.sh      # 配置最佳实践（可选）
+├── catalog.json   # config.sh 用到的资源（可选）
+└── usage.md       # 常见用法速查（可选）
+```
+
+### tool.conf 字段
 
 ```
 DESC="一句话说明"
@@ -53,7 +63,7 @@ TARGET_linux_x86_64="x86_64-unknown-linux-musl"
 TARGET_linux_arm64="aarch64-unknown-linux-musl"
 TARGET_macos_x86_64="x86_64-apple-darwin"
 TARGET_macos_arm64="aarch64-apple-darwin"
-ARCHIVE="tar.gz"                          # tar.gz | tar.xz | zip
+ARCHIVE="tar.gz"                          # tar.gz | tar.xz | zip | zst | raw
 BINARIES="二进制名"                        # 空格分隔多个
 CHECKSUM="sha256-sidecar"                 # 可选：校验官方 .sha256 旁路文件
 ASSET_FALLBACKS="备用模板1 备用模板2"       # 可选：主资产 404 时按序尝试（写实测存在的格式）
@@ -62,7 +72,14 @@ ASSET_STRIP_V=1                            # 可选：tag 带 v 前缀但资产�
 
 两个实用技巧：资产名完全不含占位符规律时（如 neovim 的 `nvim-linux-x86_64.tar.gz`、jq 的裸二进制），把 `TARGET_*` 直接写成完整资产名、`ASSET="{{TARGET}}"` 即可；资产是裸二进制（无压缩包）时设 `ARCHIVE="raw"`。
 
+### config.sh（配置最佳实践）
 
+每个工具可以提供自己的配置实践——本质就是脚本或配置文件的增删改，保持简单：
+
+- codex：接入阿里云百炼 API（写 config.toml + 模型目录，key 存入 shell rc）
+- shadowsocks-rust：生成配置 + 安装 sson/ssoff 一键代理开关
+
+约定：定义 `<名字连字符转下划线>_config` 函数；可选 `_config_status` 在 status 中显示配置状态。
 
 ### 上游改名了怎么办
 
