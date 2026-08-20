@@ -1,15 +1,16 @@
-# codex 配置最佳实践：接入阿里云百炼 API（OpenAI 兼容端点）
-# 做的事：写 ~/.codex/config.toml + 模型能力目录，key 存入 shell rc
-# 换别的 OpenAI 兼容后端：改下面五个变量即可
+# 配置实践：接入阿里云百炼 API（OpenAI 兼容端点）
+# 换别的 OpenAI 兼容后端：复制本文件改名，改下面五个变量即可
 
-codex_config() {
+config_desc() { echo "接入阿里云百炼 API（config.toml + 模型目录 + key）"; }
+
+config_run() {
   local name="bailian"
   local base_url="https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
   local model="qwen3.8-max-preview"
   local key_env="OPENAI_API_KEY"
   local wire_api="responses"
 
-  _codex_ensure_key "$key_env"
+  _bailian_ensure_key "$key_env"
   mkdir -p "$HOME/.codex"
   cat > "$HOME/.codex/config.toml" <<CFG
 model = "$model"
@@ -28,7 +29,7 @@ CFG
   log "配置已写入 ~/.codex/config.toml（$name / $model）"
 }
 
-_codex_ensure_key() {
+_bailian_ensure_key() {
   local var="$1" rc k
   rc="$(rc_file)"
   [ -n "$(printenv "$var" 2>/dev/null || true)" ] && return 0
@@ -48,10 +49,10 @@ _codex_ensure_key() {
   log "$var 已写入 $rc"
 }
 
-codex_config_status() {
+config_status() {
   if [ -f "$HOME/.codex/config.toml" ]; then
-    echo "配置:    ✓ ~/.codex/config.toml（百炼 API）"
+    echo "配置[百炼]: ✓ ~/.codex/config.toml"
   else
-    echo "配置:    ✗ 未配置（brook codex config 接入百炼 API）"
+    echo "配置[百炼]: ✗ 未配置（brook codex config bailian）"
   fi
 }

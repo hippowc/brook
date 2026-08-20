@@ -74,7 +74,8 @@ brook —— GitHub release 二进制安装器
   brook <tool> install [选项]         安装（默认最新版）
   brook <tool> upgrade [--proxy P]    升级到最新版
   brook <tool> status                 查看安装与配置状态
-  brook <tool> config                 运行配置（部分工具支持，list 中标 ✓）
+  brook <tool> config                 列出该工具的配置实践及状态
+  brook <tool> config <实践>           执行指定配置实践
   brook <tool> usage                  查看常见用法速查
   brook <tool> remove                 移除
   brook proxies                       查看加速代理预设
@@ -107,7 +108,7 @@ list_tools() {
       source "$f"
       echo "${DESC:-}"
     )"
-    if [ -f "$BROOK_HOME/tools/$tool/config.sh" ]; then cfg="✓"; else cfg="-"; fi
+    if ls "$BROOK_HOME/tools/$tool/config/"*.sh >/dev/null 2>&1; then cfg="✓"; else cfg="-"; fi
     tag="$(installed_tag_of "$tool")"
     if [ -n "$tag" ] && binaries_present "$tool"; then
       status="✓ $tag"
@@ -138,6 +139,7 @@ brook_main() {
       TOOL_VERSION="latest"
       FORCE=0
       PROXY_NAME="${BROOK_PROXY:-}"
+      local practice=""
       while [ $# -gt 0 ]; do
         case "$1" in
           --version)   TOOL_VERSION="${2:-}"; shift 2 ;;
@@ -145,16 +147,33 @@ brook_main() {
           --proxy)     PROXY_NAME="${2:-}"; shift 2 ;;
           --proxy=*)   PROXY_NAME="${1#*=}"; shift ;;
           --force|-f)  FORCE=1; shift ;;
-          *) die "未知参数: $1" ;;
+          -*) die "未知参数: $1" ;;
+          *)
+            if [ -n "$practice" ]; then die "多余参数: $1"; fi
+            practice="$1"; shift ;;
         esac
       done
-      run_tool "$cmd" "$action"
+      run_tool "$cmd" "$action" "$practice"
       ;;
   esac
 }
 
+# 展示一个工具全部配置实践的状态（各实践可选定义 config_status）
+_show_config_status() {
+  local cfgdir="$BROOK_HOME/tools/$1/config" cf
+  [ -d "$cfgdir" ] || return 0
+  for cf in "$cfgdir"/*.sh; do
+    [ -e "$cf" ] || continue
+    # shellcheck source=/dev/null
+    source "$cf"
+    if declare -f config_status >/dev/null; then config_status; fi
+    unset -f config_run config_desc config_status 2>/dev/null || true
+  done
+  return 0
+}
+
 run_tool() {
-  local tool="$1" action="$2" fn
+  local tool="$1" action="$2" practice="${3:-}" fn
   # shellcheck source=/dev/null
   source "$BROOK_HOME/tools/$tool/tool.conf"
   fn="$(printf '%s' "$tool" | tr '-' '_')"
@@ -171,16 +190,31 @@ run_tool() {
       fi
       ;;
     config)
-      if [ -f "$BROOK_HOME/tools/$tool/config.sh" ]; then
-        # shellcheck source=/dev/null
-        source "$BROOK_HOME/tools/$tool/config.sh"
-        if declare -f "${fn}_config" >/dev/null; then
-          "${fn}_config"
-        else
-          die "$tool 的钩子未定义 ${fn}_config"
-        fi
+      local cfgdir="$BROOK_HOME/tools/$tool/config"
+      if [ ! -d "$cfgdir" ] || [ -z "$(ls "$cfgdir"/*.sh 2>/dev/null)" ]; then
+        die "$tool 暂无配置实践（在 tools/$tool/config/ 下加 <名字>.sh 即可扩展）"
+      fi
+      if [ -z "$practice" ]; then
+        echo "$tool 的配置实践（brook $tool config <名字> 执行）："
+        local cf cn
+        for cf in "$cfgdir"/*.sh; do
+          cn="$(basename "$cf" .sh)"
+          printf '  %-10s %s
+' "$cn" "$(
+            # shellcheck source=/dev/null
+            source "$cf"
+            if declare -f config_desc >/dev/null; then config_desc; fi
+          )"
+        done
+        echo
+        _show_config_status "$tool"
       else
-        die "$tool 无配置支持（没有 tools/$tool/config.sh）"
+        local cf="$cfgdir/$practice.sh"
+        [ -f "$cf" ] || die "没有 '$practice' 配置实践（brook $tool config 查看可用）"
+        # shellcheck source=/dev/null
+        source "$cf"
+        declare -f config_run >/dev/null || die "$practice.sh 未定义 config_run"
+        config_run
       fi
       ;;
     *) die "未知操作 '$action'（可用：install / upgrade / status / config / usage / remove）" ;;

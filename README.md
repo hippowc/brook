@@ -48,8 +48,8 @@ brook proxies                               # 代理预设
 ```
 tools/<名字>/
 ├── tool.conf      # release 映射（必须）
-├── config.sh      # 配置最佳实践（可选）
-├── catalog.json   # config.sh 用到的资源（可选）
+├── config/        # 配置最佳实践（可选）：一个文件一个具名实践
+├── catalog.json   # 配置实践用到的资源（可选）
 └── usage.md       # 常见用法速查（可选）
 ```
 
@@ -72,26 +72,29 @@ ASSET_STRIP_V=1                            # 可选：tag 带 v 前缀但资产�
 
 两个实用技巧：资产名完全不含占位符规律时（如 neovim 的 `nvim-linux-x86_64.tar.gz`、jq 的裸二进制），把 `TARGET_*` 直接写成完整资产名、`ASSET="{{TARGET}}"` 即可；资产是裸二进制（无压缩包）时设 `ARCHIVE="raw"`。
 
-### config.sh（配置最佳实践）
+### config/（配置最佳实践）
 
-每个工具可以提供自己的配置实践——本质就是脚本或配置文件的增删改，保持简单：
+每个工具可以提供**一组具名的配置实践**——本质就是脚本或配置文件的增删改，保持简单：
 
-- codex：接入阿里云百炼 API（写 config.toml + 模型目录，key 存入 shell rc）
-- shadowsocks-rust：生成配置 + 安装 sson/ssoff 一键代理开关
+```
+tools/<名字>/config/
+├── <实践1>.sh
+└── <实践2>.sh        # 加实践 = 加文件
+```
 
-约定：定义 `<名字连字符转下划线>_config` 函数；可选 `_config_status` 在 status 中显示配置状态。
+```bash
+brook <tool> config            # 列出该工具全部实践及状态
+brook <tool> config <实践>      # 执行指定实践
+```
 
-### 上游改名了怎么办
+实践文件约定三个函数：`config_desc`（一句话说明）、`config_run`（执行）、`config_status`（可选，状态展示）。粒度按用户视角切分，例如 shadowsocks-rust：
 
-资产选择是注册时确定的映射，上游改命名时按三级兜底降级：
+- `client`：生成客户端配置（服务器地址/端口/密码）
+- `server`：生成服务端配置
+- `switch`：安装 sson/ssoff 一键代理开关
 
-1. **预置候选**：`ASSET_FALLBACKS` 里的实测备用格式，按序尝试；
-2. **运行时枚举**：全部 miss 时拉取该 release 的真实资产列表，按平台三元组筛选——唯一候选自动选用并警告，多个候选交互选择；
-3. 都失败：展示真实资产列表，提示更新映射。
+codex 目前是 `bailian`（接入百炼 API），加 openrouter/ollama 就是加文件。
 
-正常路径始终零猜测、零额外请求；启发式只在映射失效后兜底，且每次触发都大声警告。
-
-2. 如需配置，加 `hooks/<名字>.sh`，定义 `<名字连字符转下划线>_config`（可选 `_config_status` 显示配置状态）。
 
 ## 代理
 

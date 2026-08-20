@@ -268,12 +268,7 @@ do_status() {
       echo "二进制:  ✗ $b 不在 $BROOK_BIN_DIR"
     fi
   done
-  fn="$(printf '%s' "$tool" | tr '-' '_')"
-  if [ -f "$BROOK_HOME/tools/$tool/config.sh" ]; then
-    # shellcheck source=/dev/null
-    source "$BROOK_HOME/tools/$tool/config.sh"
-    if declare -f "${fn}_config_status" >/dev/null; then "${fn}_config_status"; fi
-  fi
+  _show_config_status "$tool"
   if [ -f "$BROOK_HOME/tools/$tool/usage.md" ]; then
     echo "用法:    brook $tool usage（常见用法速查）"
   fi
