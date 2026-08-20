@@ -2,6 +2,8 @@
 
 GitHub release 二进制安装器：把 GitHub 上发布的二进制工具统一装到本地（`~/.local/bin`）并加入 PATH。支持 Linux / macOS（x86_64 / arm64），支持国内加速代理。
 
+维护与扩展本项目请先读 [AGENTS.md](AGENTS.md)。
+
 ## 安装
 
 ```bash
@@ -23,23 +25,9 @@ brook proxies                               # 代理预设
 
 常用选项：`--version V`（pin 版本）、`--proxy P`（代理，也可直接给 URL 前缀）、`--force`（强制重装）。`BROOK_PROXY=P` 可全局指定代理。
 
-## 内置工具
+## 支持哪些工具
 
-| 工具 | 说明 | 配置 |
-|---|---|---|
-| codex | OpenAI 开源终端编码 agent | ✓ |
-| shadowsocks-rust | SOCKS5 代理（ssserver/sslocal） | ✓ |
-| ripgrep | 极速文本搜索（rg） | — |
-| fd | 现代 find：按正则快速找文件 | — |
-| bat | 现代 cat：语法高亮 + 行号 | — |
-| eza | 现代 ls：图标/Git 状态/树形（仅 Linux） | — |
-| zoxide | 智能 cd：按访问频率跳转（z） | — |
-| fzf | 模糊搜索：文件/历史/管道 | — |
-| helix | 后现代终端编辑器（hx） | — |
-| neovim | Vim 的现代演进（nvim） | — |
-| jq | 命令行 JSON 处理器 | — |
-| yt-dlp | 通用视频下载器 | — |
-| gocryptfs | 加密目录挂载（仅 Linux） | — |
+工具库持续扩充，以 `brook list` 输出为准（含安装状态与配置支持标记）。
 
 ## 新增一个工具
 
@@ -87,13 +75,7 @@ brook <tool> config            # 列出该工具全部实践及状态
 brook <tool> config <实践>      # 执行指定实践
 ```
 
-实践文件约定三个函数：`config_desc`（一句话说明）、`config_run`（执行）、`config_status`（可选，状态展示）。粒度按用户视角切分，例如 shadowsocks-rust：
-
-- `client`：生成客户端配置（服务器地址/端口/密码）
-- `server`：生成服务端配置
-- `switch`：安装 sson/ssoff 一键代理开关
-
-codex 目前是 `bailian`（接入百炼 API），加 openrouter/ollama 就是加文件。
+实践文件约定三个函数：`config_desc`（一句话说明）、`config_run`（执行）、`config_status`（可选，状态展示）。粒度按用户视角切分——用户眼中"不同的事"就是不同的实践，一个工具可以有多个实践。例如 codex 的 `bailian` 实践（接入百炼 API：写 config.toml + 模型目录 + key 管理），以后加 openrouter/ollama 就是加文件。
 
 
 ## 代理
