@@ -1,34 +1,54 @@
 # brook
 
-agent 环境配置器：**agent 的安装与配置**、模型后端切换、常用初始化任务。支持 Linux 和 macOS。
+GitHub release 二进制安装器：把 GitHub 上发布的二进制工具统一装到本地（`~/.local/bin`）并加入 PATH。支持 Linux / macOS（x86_64 / arm64），支持国内加速代理。
 
-## 安装（全新机器，一行）
+## 安装
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /tmp/brook-install.sh && bash /tmp/brook-install.sh
 ```
 
-克隆框架到 `~/.brook` 后进入**交互式初始化向导**：菜单驱动，先显示当前缺什么，逐步选择执行，每一步可定制（版本、下载源等）。已装过？随时运行 `~/.brook/bootstrap.sh` 重新进入向导。
-
-## 进阶用法（跳过向导）
+## 使用
 
 ```bash
-~/.brook/bootstrap.sh --list                     # 查看可用条目
-~/.brook/bootstrap.sh codex git-key              # 直接执行指定条目
-CODEX_VERSION=rust-v0.148.0 ~/.brook/bootstrap.sh codex   # pin 版本
-CODEX_ASSET_URL=https://... ~/.brook/bootstrap.sh codex   # 换下载源（国内加速）
+brook list                                  # 可用工具及状态
+brook codex install --proxy gh-proxy        # 安装（国内建议加代理）
+brook codex config                          # 配置（支持的工具）
+brook codex status                          # 状态
+brook codex upgrade                         # 升级
+brook codex remove                          # 移除
+brook proxies                               # 代理预设
 ```
 
-## 可用条目
+常用选项：`--version V`（pin 版本）、`--proxy P`（代理，也可直接给 URL 前缀）、`--force`（强制重装）。`BROOK_PROXY=P` 可全局指定代理。
 
-| 条目 | 类型 | 作用 |
+## 内置工具
+
+| 工具 | 说明 | 配置钩子 |
 |---|---|---|
-| codex | agent | 安装并配置 codex（OpenAI 开源终端 agent） |
-| git-key | task | 初始化 git 身份 + SSH 密钥 |
-| shadowsocks | task | 安装 shadowsocks-rust 并交互式生成配置 |
+| codex | OpenAI 开源终端编码 agent | ✓（config.toml + 模型后端） |
+| shadowsocks-rust | SOCKS5 代理（ssserver/sslocal） | ✓（交互式生成配置） |
+| ripgrep | 极速搜索（rg） | — |
 
-## 扩展
+## 新增一个工具
 
-- **新增 agent**：复制 `bootstrap/adapters/_template.sh` 为 `adapters/<名字>.sh`，实现 install/configure/verify 三件套（可选加 _desc/_status/_options 获得向导展示与定制能力），核心代码零改动。
-- **新增初始化功能**：复制 `bootstrap/tasks/_template.sh` 为 `tasks/<名字>.sh`，实现 `<名字>_run`（幂等、可交互、机密只写 $HOME）。
-- **新增模型后端**：在 `bootstrap/providers/` 增加一个 `.env`（OpenAI 兼容端点是最大公约数）。
+1. 加 `registry/<名字>.conf`（工具与 release 文件的映射）：
+
+```
+DESC="一句话说明"
+REPO="owner/repo"
+ASSET="模板-{{TAG}}-{{TARGET}}.tar.gz"   # 占位符：{{TAG}} 版本、{{TARGET}} 平台
+TARGET_linux_x86_64="x86_64-unknown-linux-musl"
+TARGET_linux_arm64="aarch64-unknown-linux-musl"
+TARGET_macos_x86_64="x86_64-apple-darwin"
+TARGET_macos_arm64="aarch64-apple-darwin"
+ARCHIVE="tar.gz"                          # tar.gz | tar.xz | zip
+BINARIES="二进制名"                        # 空格分隔多个
+CHECKSUM="sha256-sidecar"                 # 可选：校验官方 .sha256 旁路文件
+```
+
+2. 如需配置，加 `hooks/<名字>.sh`，定义 `<名字连字符转下划线>_config`（可选 `_config_status` 显示配置状态）。
+
+## 代理
+
+预设在 `proxies.conf`（实测见文件内注释）。两种模式：`prefix`（URL 前拼接，gh-proxy 系）与 `replace`（域名替换）。加新代理 = 加一行。

@@ -1,24 +1,16 @@
 #!/usr/bin/env bash
-# brook —— agent 环境配置器
-#
-# 用法（全新机器，一行）：
-#   curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /tmp/brook-install.sh && bash /tmp/brook-install.sh
-#
-# 做的事：克隆本框架到 ~/.brook，然后进入交互式初始化向导。
-# 可覆盖环境变量：BROOK_REPO（框架仓库地址）、BROOK_DIR（安装位置，默认 ~/.brook）
+# brook 安装器：克隆到 ~/.brook，把 brook 命令链接到 ~/.local/bin
+# curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /tmp/brook-install.sh && bash /tmp/brook-install.sh
 set -euo pipefail
 
 BROOK_REPO="${BROOK_REPO:-https://github.com/hippowc/brook.git}"
 BROOK_DIR="${BROOK_DIR:-$HOME/.brook}"
+BIN_DIR="${BROOK_BIN_DIR:-$HOME/.local/bin}"
 
-echo "brook —— agent 环境配置器"
-echo "  框架仓库: $BROOK_REPO"
-echo "  安装位置: $BROOK_DIR"
-echo
+echo "brook 安装器（GitHub release 二进制安装器）"
 command -v git >/dev/null 2>&1 || { echo "请先安装 git"; exit 1; }
 
 if [ -d "$BROOK_DIR/.git" ]; then
-  echo "已安装，更新..."
   git -C "$BROOK_DIR" pull --ff-only || echo "（更新失败，先用本地版本）"
 else
   if [ -e "$BROOK_DIR" ]; then
@@ -28,6 +20,19 @@ else
   git clone "$BROOK_REPO" "$BROOK_DIR"
 fi
 
+mkdir -p "$BIN_DIR"
+ln -sf "$BROOK_DIR/brook" "$BIN_DIR/brook"
+
+rc="$HOME/.bashrc"
+case "${SHELL:-/bin/bash}" in *zsh) rc="$HOME/.zshrc" ;; esac
+touch "$rc"
+if ! grep -qF 'export PATH="$HOME/.local/bin:$PATH"' "$rc"; then
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$rc"
+  echo "PATH 已写入 $rc"
+fi
+
 echo
-echo "进入初始化向导（以后随时可运行 $BROOK_DIR/bootstrap.sh 重新进入）..."
-exec bash "$BROOK_DIR/bootstrap.sh"
+echo "完成。开始使用："
+echo "  source $rc    （或重新登录）"
+echo "  brook list    （查看可安装的工具）"
+echo "  brook codex install --proxy gh-proxy && brook codex config"

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# brook —— GitHub release 二进制安装器
+# 子命令用法见 brook help；工具映射在 registry/，配置钩子在 hooks/。
+set -euo pipefail
+BROOK_HOME="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export BROOK_HOME
+export BROOK_BIN_DIR="${BROOK_BIN_DIR:-$HOME/.local/bin}"
+export BROOK_META_DIR="${BROOK_META_DIR:-$BROOK_BIN_DIR/.brook-meta}"
+source "$BROOK_HOME/lib/core.sh"
+source "$BROOK_HOME/lib/proxy.sh"
+source "$BROOK_HOME/lib/registry.sh"
+brook_main "$@"
