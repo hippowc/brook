@@ -274,6 +274,9 @@ do_status() {
     source "$BROOK_HOME/hooks/$tool.sh"
     if declare -f "${fn}_config_status" >/dev/null; then "${fn}_config_status"; fi
   fi
+  if [ -f "$BROOK_HOME/usage/$tool.md" ]; then
+    echo "用法:    brook $tool usage（常见用法速查）"
+  fi
 }
 
 do_remove() {

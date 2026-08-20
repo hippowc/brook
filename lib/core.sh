@@ -75,6 +75,7 @@ brook —— GitHub release 二进制安装器
   brook <tool> upgrade [--proxy P]    升级到最新版
   brook <tool> status                 查看安装与配置状态
   brook <tool> config                 运行配置（部分工具支持，list 中标 ✓）
+  brook <tool> usage                  查看常见用法速查
   brook <tool> remove                 移除
   brook proxies                       查看加速代理预设
 
@@ -119,6 +120,7 @@ list_tools() {
   done
   echo
   echo "标 ✓ 配置的工具装完后记得运行：brook <工具> config"
+  echo "不会用某个工具？brook <工具> usage 查看常见用法速查"
 }
 
 brook_main() {
@@ -161,6 +163,13 @@ run_tool() {
     upgrade) do_upgrade "$tool" ;;
     status)  do_status "$tool" ;;
     remove)  do_remove "$tool" ;;
+    usage)
+      if [ -f "$BROOK_HOME/usage/$tool.md" ]; then
+        cat "$BROOK_HOME/usage/$tool.md"
+      else
+        die "$tool 暂无用法文档（欢迎补充 usage/$tool.md）"
+      fi
+      ;;
     config)
       if [ -f "$BROOK_HOME/hooks/$tool.sh" ]; then
         # shellcheck source=/dev/null
@@ -174,6 +183,6 @@ run_tool() {
         die "$tool 无配置支持（没有 hooks/$tool.sh）"
       fi
       ;;
-    *) die "未知操作 '$action'（可用：install / upgrade / status / config / remove）" ;;
+    *) die "未知操作 '$action'（可用：install / upgrade / status / config / usage / remove）" ;;
   esac
 }
