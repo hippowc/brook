@@ -63,7 +63,7 @@ bash -n brook lib/*.sh tools/*/config/*.sh             # 语法检查
 ## 约定与红线
 
 - commit message：中文，`brook: xxx` 前缀
-- **README 不罗列全部工具，不展示敏感工具（如 shadowsocks-rust）**；工具清单以 `brook list` 为准
+- **README 不罗列全部工具，不点名展示任何具体工具的敏感用途**；工具清单以 `brook list` 输出为准
 - 兜底链触发 = 上游改名信号，事后必须更新 tool.conf 主映射
 - 不引入 bash 4+ 语法（无关联数组、无 ${var,,}，占位符替换用 sed）
 - 本仓库经历过两次推翻重建（向导式 → 安装器 → 按工具内聚），旧历史内容不代表当前设计
