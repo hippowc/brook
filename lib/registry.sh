@@ -99,6 +99,13 @@ extract_archive() {
       zstd -dc "$tmp/archive" > "$tmp/$first"
       chmod +x "$tmp/$first"
       ;;
+    raw)
+      # 资产本身就是裸二进制（如 jq、yt-dlp），无需解压
+      first=""
+      for b in $BINARIES; do first="$b"; break; done
+      cp "$tmp/archive" "$tmp/$first"
+      chmod +x "$tmp/$first"
+      ;;
     *) die "不支持的压缩类型: $atype" ;;
   esac
 }
@@ -179,12 +186,15 @@ do_install() {
     return 0
   fi
   target="$(target_of)"
+  # 有的项目 tag 带 v 前缀但资产名不带（如 zoxide v0.10.0 → zoxide-0.10.0-*）
+  local tag_use="$tag"
+  if [ "${ASSET_STRIP_V:-0}" = 1 ]; then tag_use="${tag#v}"; fi
   # 候选链：主映射 + 预置兜底候选（ASSET_FALLBACKS，均为实测存在的资产格式）
   local candidates="$ASSET ${ASSET_FALLBACKS:-}"
   local pat code chosen=""
   tmp="$(mktemp -d)"
   for pat in $candidates; do
-    asset="$(render_asset_pattern "$pat" "$tag" "$target")"
+    asset="$(render_asset_pattern "$pat" "$tag_use" "$target")"
     url="$(proxy_apply "https://github.com/$REPO/releases/download/$tag/$asset")"
     log "下载 $url"
     code="$(curl -fL --retry 1 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"

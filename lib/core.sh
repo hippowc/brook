@@ -60,32 +60,44 @@ ask() {
 usage() {
   cat <<'USAGE'
 brook —— GitHub release 二进制安装器
+把 GitHub 上发布的命令行工具一键装到 ~/.local/bin（自动加入 PATH）。
+支持 Linux / macOS（x86_64 / arm64），内置国内加速代理，自动解析最新版。
 
-用法：
-  brook list                          列出可用工具及安装状态
-  brook <tool> install [选项]         安装
-        选项：--version V  指定版本（默认 latest）
-              --proxy P    走代理（brook proxies 查看预设，也可直接给 URL 前缀）
-              --force      强制重装
+快速上手：
+  brook list                            看看能装什么（含状态）
+  brook ripgrep install                 装一个试试
+  brook codex install --proxy gh-proxy  国内网络建议加代理
+  brook codex config                    部分工具装完需要配置
+
+子命令：
+  brook list                          列出全部工具及安装状态
+  brook <tool> install [选项]         安装（默认最新版）
   brook <tool> upgrade [--proxy P]    升级到最新版
-  brook <tool> status                 查看安装/配置状态
-  brook <tool> config                 运行配置钩子（部分工具支持）
-  brook <tool> remove                 移除已安装的二进制
-  brook proxies                       查看可用代理预设
+  brook <tool> status                 查看安装与配置状态
+  brook <tool> config                 运行配置（部分工具支持，list 中标 ✓）
+  brook <tool> remove                 移除
+  brook proxies                       查看加速代理预设
 
-示例：
-  brook codex install --proxy gh-proxy
-  brook codex install --version rust-v0.148.0
-  brook codex config
+install 选项：
+  --version V    指定版本（默认 latest）
+  --proxy P      走代理：预设名（gh-proxy/ghfast）或直接给 URL 前缀
+  --force        强制重装
 
-扩展：
-  新增工具 = registry/<名字>.conf（release 映射）+ 可选 hooks/<名字>.sh（配置钩子）
+代理（国内强烈建议）：
+  brook codex install --proxy gh-proxy      单次使用
+  export BROOK_PROXY=gh-proxy               全局生效
+  brook proxies                             查看预设与实测速度
+
+支持的格式：tar.gz / tar.xz / zip / zst / 裸二进制；
+上游改资产命名时自动降级：预置候选 → 枚举真实资产列表（详见 README）。
 USAGE
 }
 
 list_tools() {
-  local f tool desc tag status
-  printf '%-18s %-18s %s\n' "工具" "状态" "说明"
+  local f tool desc tag status cfg
+  echo "可安装的工具（brook <工具> install，国内建议加 --proxy gh-proxy）："
+  echo
+  printf '%-16s %-16s %-6s %s\n' "工具" "状态" "配置" "说明"
   for f in "$BROOK_HOME"/registry/*.conf; do
     [ -e "$f" ] || continue
     tool="$(basename "$f" .conf)"
@@ -94,6 +106,7 @@ list_tools() {
       source "$f"
       echo "${DESC:-}"
     )"
+    if [ -f "$BROOK_HOME/hooks/$tool.sh" ]; then cfg="✓"; else cfg="-"; fi
     tag="$(installed_tag_of "$tool")"
     if [ -n "$tag" ] && binaries_present "$tool"; then
       status="✓ $tag"
@@ -102,8 +115,10 @@ list_tools() {
     else
       status="✗ 未安装"
     fi
-    printf '%-18s %-18s %s\n' "$tool" "$status" "$desc"
+    printf '%-16s %-16s %-6s %s\n' "$tool" "$status" "$cfg" "$desc"
   done
+  echo
+  echo "标 ✓ 配置的工具装完后记得运行：brook <工具> config"
 }
 
 brook_main() {

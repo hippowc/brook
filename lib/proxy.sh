@@ -9,8 +9,12 @@ list_proxies() {
   grep -Ev '^[[:space:]]*(#|$)' "$BROOK_HOME/proxies.conf" | while IFS='|' read -r name mode rest; do
     printf '  %-12s %-8s %s\n' "$name" "$mode" "$rest"
   done
-  echo "也可以直接传 URL 前缀：--proxy https://ghfast.top/"
-  echo "提示：--proxy none 强制直连（覆盖 BROOK_PROXY 环境变量）"
+  echo
+  echo "用法："
+  echo "  brook codex install --proxy gh-proxy    # 单次指定"
+  echo "  export BROOK_PROXY=gh-proxy             # 全局（写进 shell rc 永久生效）"
+  echo "  brook codex install --proxy https://ghfast.top/   # 直接给 URL 前缀"
+  echo "  --proxy none 可强制直连（覆盖 BROOK_PROXY）"
 }
 
 proxy_apply() {
