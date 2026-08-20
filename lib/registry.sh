@@ -31,9 +31,13 @@ target_of() {
   echo "$t"
 }
 
-render_asset() {
+render_asset_pattern() {
   # 占位符替换用 sed 实现（bash ${var//pat/} 对花括号模式解析不可靠）
-  printf '%s' "$ASSET" | sed -e "s/{{TAG}}/$1/g" -e "s/{{TARGET}}/$2/g"
+  printf '%s' "$1" | sed -e "s/{{TAG}}/$2/g" -e "s/{{TARGET}}/$3/g"
+}
+
+render_asset() {
+  render_asset_pattern "$ASSET" "$1" "$2"
 }
 
 installed_tag_of() {
@@ -69,13 +73,33 @@ verify_checksum() {
   fi
 }
 
+# 压缩类型按资产名后缀判定（兜底候选可能与主映射格式不同）
+detect_archive_type() {
+  case "$1" in
+    *.tar.gz|*.tgz) echo tar.gz ;;
+    *.tar.xz|*.txz) echo tar.xz ;;
+    *.zip)          echo zip ;;
+    *.zst)          echo zst ;;
+    *)              echo "${ARCHIVE:-tar.gz}" ;;
+  esac
+}
+
 extract_archive() {
-  local tmp="$1"
-  case "${ARCHIVE:-tar.gz}" in
-    tar.gz|tgz) tar -xzf "$tmp/archive" -C "$tmp" ;;
-    tar.xz|txz) tar -xJf "$tmp/archive" -C "$tmp" ;;
+  local tmp="$1" asset="$2" atype first b
+  atype="$(detect_archive_type "$asset")"
+  case "$atype" in
+    tar.gz) tar -xzf "$tmp/archive" -C "$tmp" ;;
+    tar.xz) tar -xJf "$tmp/archive" -C "$tmp" ;;
     zip) have unzip || die "解压 zip 需要 unzip，请先安装"; unzip -q "$tmp/archive" -d "$tmp" ;;
-    *) die "不支持的压缩类型: $ARCHIVE" ;;
+    zst)
+      # 实测（2026-08-20）：codex 的 .zst 资产是 zstd 压缩的裸二进制，不是 tar
+      have zstd || die "解压 .zst 需要 zstd 工具"
+      first=""
+      for b in $BINARIES; do first="$b"; break; done
+      zstd -dc "$tmp/archive" > "$tmp/$first"
+      chmod +x "$tmp/$first"
+      ;;
+    *) die "不支持的压缩类型: $atype" ;;
   esac
 }
 
@@ -99,6 +123,47 @@ save_meta() {
   printf 'tag=%s\ndate=%s\nrepo=%s\n' "$tag" "$(date '+%Y-%m-%d %H:%M:%S')" "$REPO" > "$BROOK_META_DIR/$tool"
 }
 
+# 候选链全部 miss 时：枚举 release 真实资产，按 target 三元组筛选
+_fallback_from_release_list() {
+  local tag="$1" target="$2" names cands n i c pick
+  warn "映射的资产均不存在，枚举该 release 的真实资产列表..."
+  names="$(curl -fsSL --connect-timeout 10 "https://api.github.com/repos/$REPO/releases/tags/$tag" 2>/dev/null \
+    | sed -n 's/.*"name": *"\([^"]*\)".*/\1/p' || true)"
+  if [ -z "$names" ]; then
+    warn "无法获取资产列表（GitHub API 不可达）"
+    return 1
+  fi
+  cands="$(printf '%s\n' "$names" | grep -F "$target" \
+    | grep -E '\.(tar\.gz|tgz|tar\.xz|txz|zip|zst)$' || true)"
+  n="$(printf '%s\n' "$cands" | grep -c . || true)"
+  if [ "$n" = 0 ]; then
+    warn "该 release 没有 $target 平台的资产，完整列表："
+    printf '%s\n' "$names" | sed 's/^/    /'
+    return 1
+  elif [ "$n" = 1 ]; then
+    chosen="$cands"
+    warn "上游命名疑似变化：自动选用 '$chosen'（建议更新 registry 映射）"
+    return 0
+  fi
+  echo "存在多个候选资产，请选择：" >&2
+  i=1
+  while IFS= read -r c; do
+    printf '  %d) %s\n' "$i" "$c" >&2
+    i=$((i+1))
+  done <<EOF_CANDS
+$cands
+EOF_CANDS
+  if [ -t 0 ]; then
+    ask pick "输入编号" "1"
+    chosen="$(printf '%s\n' "$cands" | sed -n "${pick}p")"
+    [ -n "$chosen" ] || return 1
+    warn "已选用 '$chosen'（建议更新 registry 映射）"
+    return 0
+  fi
+  warn "非交互模式无法选择，请用 --version 指定版本或更新 registry 映射"
+  return 1
+}
+
 do_install() {
   local tool="$1" tag target asset url tmp installed
   if [ "$TOOL_VERSION" = "latest" ]; then
@@ -114,14 +179,43 @@ do_install() {
     return 0
   fi
   target="$(target_of)"
-  asset="$(render_asset "$tag" "$target")"
-  url="$(proxy_apply "https://github.com/$REPO/releases/download/$tag/$asset")"
+  # 候选链：主映射 + 预置兜底候选（ASSET_FALLBACKS，均为实测存在的资产格式）
+  local candidates="$ASSET ${ASSET_FALLBACKS:-}"
+  local pat code chosen=""
   tmp="$(mktemp -d)"
-  log "下载 $url"
-  curl -fL --retry 2 --progress-bar "$url" -o "$tmp/archive" \
-    || { rm -rf "$tmp"; die "下载失败（国内网络可加 --proxy，brook proxies 查看预设）"; }
+  for pat in $candidates; do
+    asset="$(render_asset_pattern "$pat" "$tag" "$target")"
+    url="$(proxy_apply "https://github.com/$REPO/releases/download/$tag/$asset")"
+    log "下载 $url"
+    code="$(curl -fL --retry 1 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
+    if [ "$code" = "200" ] && [ -s "$tmp/archive" ]; then
+      chosen="$asset"
+      if [ "$pat" != "$ASSET" ]; then
+        warn "主映射资产缺失，使用兜底候选：$asset（建议更新 registry 映射）"
+      fi
+      break
+    fi
+    rm -f "$tmp/archive"
+    if [ "$code" = "404" ] || [ "$code" = "403" ]; then
+      warn "资产不存在：$asset"
+      continue
+    fi
+    rm -rf "$tmp"
+    die "下载失败（HTTP $code；国内网络可加 --proxy，brook proxies 查看预设）"
+  done
+  # 所有候选均缺失：枚举该 release 的真实资产列表，按平台筛选
+  if [ -z "$chosen" ]; then
+    _fallback_from_release_list "$tag" "$target" || { rm -rf "$tmp"; return 1; }
+    url="$(proxy_apply "https://github.com/$REPO/releases/download/$tag/$chosen")"
+    log "下载 $url"
+    code="$(curl -fL --retry 1 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
+    if [ "$code" != "200" ] || [ ! -s "$tmp/archive" ]; then
+      rm -rf "$tmp"
+      die "下载失败（HTTP $code）"
+    fi
+  fi
   verify_checksum "$tmp" "$url"
-  extract_archive "$tmp"
+  extract_archive "$tmp" "$chosen"
   install_binaries "$tmp"
   rm -rf "$tmp"
   save_meta "$tool" "$tag"
