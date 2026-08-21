@@ -65,4 +65,5 @@ bash -n brook lib/*.sh tools/*/config/*.sh             # 语法检查
 - commit message：中文，`brook: xxx` 前缀
 - 兜底链触发 = 上游改名信号，事后必须更新 tool.conf 主映射
 - 不引入 bash 4+ 语法（无关联数组、无 ${var,,}，占位符替换用 sed）
+- 变量引用后紧跟中文/全角字符时必须写 `${var}` 花括号形式（macOS bash 3.2 会把多字节字符并入变量名，触发 unbound variable）
 - 本仓库经历过两次推翻重建（向导式 → 安装器 → 按工具内聚），旧历史内容不代表当前设计
