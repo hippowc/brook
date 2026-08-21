@@ -63,7 +63,7 @@ official_status() {
       echo "二进制:  ✓ $(command -v "$b")"
       any=1
     else
-      echo "二进制:  ✗ $b 不在 PATH（brook $name install）"
+      echo "二进制:  ✗ $b 不在 PATH（brook install $name）"
     fi
   done
   if [ "$any" = 1 ]; then

@@ -53,6 +53,6 @@ config_status() {
   if [ -f "$HOME/.codex/config.toml" ]; then
     echo "配置[百炼]: ✓ ~/.codex/config.toml"
   else
-    echo "配置[百炼]: ✗ 未配置（brook codex config bailian）"
+    echo "配置[百炼]: ✗ 未配置（brook config codex bailian）"
   fi
 }

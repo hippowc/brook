@@ -39,7 +39,7 @@ echo
 echo "完成。开始使用："
 echo "  source $rc    （或重新登录）"
 echo "  brook list    （查看可安装的工具）"
-echo "  brook codex install --proxy gh-proxy && brook codex config"
+echo "  brook install codex --proxy gh-proxy && brook config codex"
 if [ "$(uname -s)" = "Darwin" ]; then
-  echo "提示：GitHub 不发二进制的工具（eza/mpv 等）可先 brook brew install，再用 brew 安装"
+  echo "提示：GitHub 不发二进制的工具（eza/mpv 等）可先 brook install brew，再用 brew 安装"
 fi

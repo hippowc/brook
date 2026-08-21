@@ -14,12 +14,12 @@ curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /t
 
 ```bash
 brook list                                  # 可用工具及状态
-brook codex install --proxy gh-proxy        # 安装（国内建议加代理）
-brook codex config                          # 配置（支持的工具）
-brook fd usage                              # 常见用法速查
-brook codex status                          # 状态
-brook codex upgrade                         # 升级
-brook codex remove                          # 移除
+brook install codex --proxy gh-proxy        # 安装（国内建议加代理）
+brook config codex                          # 配置（支持的工具）
+brook usage fd                              # 常见用法速查
+brook status codex                          # 状态
+brook upgrade codex                         # 升级
+brook remove codex                          # 移除
 brook upgrade                               # 更新 brook 自身
 brook proxies                               # 代理预设
 ```
@@ -75,8 +75,8 @@ tools/<名字>/config/
 ```
 
 ```bash
-brook <tool> config            # 列出该工具全部实践及状态
-brook <tool> config <实践>      # 执行指定实践
+brook config <tool>            # 列出该工具全部实践及状态
+brook config <tool> <实践>      # 执行指定实践
 ```
 
 实践文件约定三个函数：`config_desc`（一句话说明）、`config_run`（执行）、`config_status`（可选，状态展示）。粒度按用户视角切分——用户眼中"不同的事"就是不同的实践，一个工具可以有多个实践。例如 codex 的 `bailian` 实践（接入百炼 API：写 config.toml + 模型目录 + key 管理），以后加 openrouter/ollama 就是加文件。

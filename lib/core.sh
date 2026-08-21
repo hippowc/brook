@@ -65,20 +65,19 @@ brook —— GitHub release 二进制安装器
 
 快速上手：
   brook list                            看看能装什么（含状态）
-  brook ripgrep install                 装一个试试
-  brook codex install --proxy gh-proxy  国内网络建议加代理
-  brook codex config                    部分工具装完需要配置
+  brook install ripgrep                 装一个试试
+  brook install codex --proxy gh-proxy  国内网络建议加代理
+  brook config codex                    部分工具装完需要配置
 
 子命令：
   brook list                          列出全部工具及安装状态
-  brook <tool> install [选项]         安装（默认最新版）
-  brook <tool> upgrade [--proxy P]    升级到最新版
-  brook <tool> status                 查看安装与配置状态
-  brook <tool> config                 列出该工具的配置实践及状态
-  brook <tool> config <实践>           执行指定配置实践
-  brook <tool> usage                  查看常见用法速查
-  brook <tool> remove                 移除
-  brook upgrade                       更新 brook 自身
+  brook install <工具> [选项]          安装（默认最新版）
+  brook upgrade [工具]                 升级指定工具；不带工具 = 更新 brook 自身
+  brook status <工具>                  查看安装与配置状态
+  brook config <工具>                  列出该工具的配置实践及状态
+  brook config <工具> <实践>            执行指定配置实践
+  brook usage <工具>                   查看常见用法速查
+  brook remove <工具>                  移除
   brook proxies                       查看加速代理预设
 
 install 选项：
@@ -87,22 +86,22 @@ install 选项：
   --force        强制重装
 
 代理（国内强烈建议）：
-  brook codex install --proxy gh-proxy      单次使用
+  brook install codex --proxy gh-proxy      单次使用
   export BROOK_PROXY=gh-proxy               全局生效
   brook proxies                             查看预设与实测速度
 
+超级官方应用（官网一行命令安装，brook 只管装）：
+  brook install brew                 安装 Homebrew
+  brook install rustup               安装 Rust 工具链
+
 支持的格式：tar.gz / tar.xz / zip / zst / 裸二进制；
 上游改资产命名时自动降级：预置候选 → 枚举真实资产列表（详见 README）。
-
-超级官方应用（官网一行命令安装，brook 只管装）：
-  brook brew install                 安装 Homebrew
-  brook rustup install               安装 Rust 工具链
 USAGE
 }
 
 list_tools() {
   local f tool desc tag status cfg
-  echo "可安装的工具（brook <工具> install，国内建议加 --proxy gh-proxy）："
+  echo "可安装的工具（brook install <工具>，国内建议加 --proxy gh-proxy）："
   echo
   printf '%-16s %-16s %-6s %s\n' "工具" "状态" "配置" "说明"
   for f in "$BROOK_HOME"/tools/*/tool.conf; do
@@ -132,8 +131,8 @@ list_tools() {
     official_list
   fi
   echo
-  echo "标 ✓ 配置的工具装完后记得运行：brook <工具> config"
-  echo "不会用某个工具？brook <工具> usage 查看常见用法速查"
+  echo "标 ✓ 配置的工具装完后记得运行：brook config <工具>"
+  echo "不会用某个工具？brook usage <工具> 查看常见用法速查"
 }
 
 self_upgrade() {
@@ -162,40 +161,55 @@ brook_main() {
     help|-h|--help) usage ;;
     list) list_tools ;;
     proxies) list_proxies ;;
-    upgrade) self_upgrade ;;
-    *)
-      local conf="$BROOK_HOME/tools/$cmd/tool.conf"
-      if [ ! -f "$conf" ]; then
-        if [ -f "$BROOK_HOME/official/$cmd.conf" ]; then
-          shift
-          run_official "$cmd" "${1:-status}"
-          return 0
-        fi
-        die "未知工具 '$cmd'（brook list 查看可用工具）"
+    upgrade)
+      if [ $# -ge 2 ]; then
+        shift
+        _dispatch_tool upgrade "$@"
+      else
+        self_upgrade
       fi
+      ;;
+    install|status|config|usage|remove)
       shift
-      local action="${1:-status}"
-      shift || true
-      TOOL_VERSION="latest"
-      FORCE=0
-      PROXY_NAME="${BROOK_PROXY:-}"
-      local practice=""
-      while [ $# -gt 0 ]; do
-        case "$1" in
-          --version)   TOOL_VERSION="${2:-}"; shift 2 ;;
-          --version=*) TOOL_VERSION="${1#*=}"; shift ;;
-          --proxy)     PROXY_NAME="${2:-}"; shift 2 ;;
-          --proxy=*)   PROXY_NAME="${1#*=}"; shift ;;
-          --force|-f)  FORCE=1; shift ;;
-          -*) die "未知参数: $1" ;;
-          *)
-            if [ -n "$practice" ]; then die "多余参数: $1"; fi
-            practice="$1"; shift ;;
-        esac
-      done
-      run_tool "$cmd" "$action" "$practice"
+      [ $# -ge 1 ] || die "用法：brook $cmd <工具>（brook help 查看帮助）"
+      _dispatch_tool "$cmd" "$@"
+      ;;
+    *)
+      if [ -f "$BROOK_HOME/tools/$cmd/tool.conf" ] || [ -f "$BROOK_HOME/official/$cmd.conf" ]; then
+        die "命令格式为 'brook <动作> <工具>'，如：brook install $cmd"
+      fi
+      die "未知命令 '$cmd'（brook help 查看用法）"
       ;;
   esac
+}
+
+# 按工具分发：official/ 优先判定（独立轨），其余走 tools/ 流水线
+_dispatch_tool() {
+  local action="$1" tool="$2"
+  shift 2
+  if [ -f "$BROOK_HOME/official/$tool.conf" ]; then
+    run_official "$tool" "$action"
+    return 0
+  fi
+  [ -f "$BROOK_HOME/tools/$tool/tool.conf" ] || die "未知工具 '$tool'（brook list 查看可用工具）"
+  TOOL_VERSION="latest"
+  FORCE=0
+  PROXY_NAME="${BROOK_PROXY:-}"
+  local practice=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --version)   TOOL_VERSION="${2:-}"; shift 2 ;;
+      --version=*) TOOL_VERSION="${1#*=}"; shift ;;
+      --proxy)     PROXY_NAME="${2:-}"; shift 2 ;;
+      --proxy=*)   PROXY_NAME="${1#*=}"; shift ;;
+      --force|-f)  FORCE=1; shift ;;
+      -*) die "未知参数: $1" ;;
+      *)
+        if [ -n "$practice" ]; then die "多余参数: $1"; fi
+        practice="$1"; shift ;;
+    esac
+  done
+  run_tool "$tool" "$action" "$practice"
 }
 
 # 展示一个工具全部配置实践的状态（各实践可选定义 config_status）
@@ -235,7 +249,7 @@ run_tool() {
         die "$tool 暂无配置实践（在 tools/$tool/config/ 下加 <名字>.sh 即可扩展）"
       fi
       if [ -z "$practice" ]; then
-        echo "$tool 的配置实践（brook $tool config <名字> 执行）："
+        echo "$tool 的配置实践（brook config $tool <名字> 执行）："
         local cf cn
         for cf in "$cfgdir"/*.sh; do
           cn="$(basename "$cf" .sh)"

@@ -1,6 +1,6 @@
 # codex 常见用法
 
-终端编码 Agent：读代码、改文件、跑命令、提交 git。先跑 `brook codex config bailian` 配好模型后端。
+终端编码 Agent：读代码、改文件、跑命令、提交 git。先跑 `brook config codex bailian` 配好模型后端。
 
 ## 启动
 
@@ -29,4 +29,4 @@ Ctrl+C 中断当前任务    Ctrl+D 退出    Tab 忙碌时排队下一条指令
 ## 项目指令
 
 项目根目录放 `AGENTS.md`（启动自动注入），全局放 `~/.codex/AGENTS.md`。
-配置都在 `~/.codex/config.toml`（brook codex config bailian 生成）。
+配置都在 `~/.codex/config.toml`（brook config codex bailian 生成）。

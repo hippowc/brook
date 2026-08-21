@@ -5,7 +5,7 @@
 ## 服务端
 
 ```bash
-ssserver -c svr.json        # 配置示例见 brook shadowsocks-rust config client 生成
+ssserver -c svr.json        # 配置示例见 brook config shadowsocks-rust client 生成
 sudo ufw allow 8388/tcp && sudo ufw allow 8388/udp
 ss -lunpt | grep 8388       # 验证监听
 ```

@@ -36,6 +36,6 @@ config_status() {
   if [ -f "$HOME/.config/shadowsocks-rust/server.json" ]; then
     echo "配置[server]: ✓ ~/.config/shadowsocks-rust/server.json"
   else
-    echo "配置[server]: ✗ 未生成（brook shadowsocks-rust config server）"
+    echo "配置[server]: ✗ 未生成（brook config shadowsocks-rust server）"
   fi
 }

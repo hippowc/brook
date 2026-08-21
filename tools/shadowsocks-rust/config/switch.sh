@@ -7,7 +7,7 @@ config_desc() { echo "安装 sson/ssoff 一键开关到 shell rc（前提：clie
 
 config_run() {
   if [ ! -f "$HOME/.config/shadowsocks-rust/config.json" ]; then
-    warn "尚无 client 配置：建议先 brook shadowsocks-rust config client"
+    warn "尚无 client 配置：建议先 brook config shadowsocks-rust client"
   fi
   local rc
   rc="$(rc_file)"
@@ -38,6 +38,6 @@ config_status() {
   if grep -q "^sson()" "$(rc_file)" 2>/dev/null; then
     echo "配置[switch]: ✓ sson/ssoff 已装（source rc 后可用）"
   else
-    echo "配置[switch]: ✗ 未安装（brook shadowsocks-rust config switch）"
+    echo "配置[switch]: ✗ 未安装（brook config shadowsocks-rust switch）"
   fi
 }

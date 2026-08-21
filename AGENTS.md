@@ -66,8 +66,8 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 ```bash
 export HOME=/tmp/brook-test-home && mkdir -p $HOME   # 隔离环境
 ./brook list / status / usage                          # 基础冒烟
-./brook <小工具> install --proxy gh-proxy               # 真实安装实测
-./brook <工具> config <实践>                            # 配置实践实测
+./brook install <小工具> --proxy gh-proxy               # 真实安装实测
+./brook config <工具> <实践>                            # 配置实践实测
 bash -n brook lib/*.sh tools/*/config/*.sh             # 语法检查
 ```
 

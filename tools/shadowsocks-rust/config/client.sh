@@ -30,13 +30,13 @@ config_run() {
 CFG
   chmod 600 "$cfg"
   log "客户端配置已写入：${cfg}（权限 600）"
-  log "下一步：brook shadowsocks-rust config switch（装 sson/ssoff 开关）"
+  log "下一步：brook config shadowsocks-rust switch（装 sson/ssoff 开关）"
 }
 
 config_status() {
   if [ -f "$HOME/.config/shadowsocks-rust/config.json" ]; then
     echo "配置[client]: ✓ ~/.config/shadowsocks-rust/config.json"
   else
-    echo "配置[client]: ✗ 未生成（brook shadowsocks-rust config client）"
+    echo "配置[client]: ✗ 未生成（brook config shadowsocks-rust client）"
   fi
 }

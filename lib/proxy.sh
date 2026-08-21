@@ -11,9 +11,9 @@ list_proxies() {
   done
   echo
   echo "用法："
-  echo "  brook codex install --proxy gh-proxy    # 单次指定"
+  echo "  brook install codex --proxy gh-proxy    # 单次指定"
   echo "  export BROOK_PROXY=gh-proxy             # 全局（写进 shell rc 永久生效）"
-  echo "  brook codex install --proxy https://ghfast.top/   # 直接给 URL 前缀"
+  echo "  brook install codex --proxy https://ghfast.top/   # 直接给 URL 前缀"
   echo "  --proxy none 可强制直连（覆盖 BROOK_PROXY）"
 }
 

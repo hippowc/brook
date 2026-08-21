@@ -23,4 +23,4 @@ u Ctrl-r        # 撤销/重做
 ## 配置
 
 配置在 `~/.config/nvim/init.lua`（或 init.vim）。插件生态推荐 lazy.nvim 起步；
-想要开箱即用的现代体验也可以试 helix（brook helix install）。
+想要开箱即用的现代体验也可以试 helix（brook install helix）。

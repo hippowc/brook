@@ -265,7 +265,7 @@ do_status() {
   if [ -n "$tag" ]; then
     echo "安装:    ✓ ${tag}（$(sed -n 's/^date=//p' "$BROOK_META_DIR/$tool")）"
   else
-    echo "安装:    ✗ 未安装（brook $tool install）"
+    echo "安装:    ✗ 未安装（brook install $tool）"
   fi
   for b in ${BINARIES:-}; do
     if [ -x "$BROOK_BIN_DIR/$b" ]; then
@@ -276,7 +276,7 @@ do_status() {
   done
   _show_config_status "$tool"
   if [ -f "$BROOK_HOME/tools/$tool/usage.md" ]; then
-    echo "用法:    brook $tool usage（常见用法速查）"
+    echo "用法:    brook usage $tool（常见用法速查）"
   fi
 }
 
