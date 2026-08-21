@@ -56,8 +56,10 @@ binaries_present() {
   local tool="$1" b
   # shellcheck source=/dev/null
   source "$BROOK_HOME/tools/$tool/tool.conf"
-  for b in $BINARIES; do
-    [ -x "$BROOK_BIN_DIR/$b" ] || return 1
+  for b in ${BINARIES:-}; do
+    if [ -x "$BROOK_BIN_DIR/$b" ]; then continue; fi
+    if command -v "$b" >/dev/null 2>&1; then continue; fi
+    return 1
   done
   return 0
 }
@@ -177,8 +179,29 @@ EOF_CANDS
   return 1
 }
 
+# 官方脚本类安装（INSTALLER="official-script"）：委托执行上游官方安装脚本
+_install_via_script() {
+  local tool="$1" tmp_script
+  [ -n "${SCRIPT_URL:-}" ] || die "$tool：tool.conf 缺少 SCRIPT_URL"
+  tmp_script="$(mktemp)"
+  log "获取官方安装脚本：$SCRIPT_URL"
+  curl -fsSL "$SCRIPT_URL" -o "$tmp_script" || { rm -f "$tmp_script"; die "获取安装脚本失败（网络问题可设代理环境变量 https_proxy）"; }
+  log "即将执行官方安装脚本（可能需要 sudo 与交互确认）"
+  if ! bash "$tmp_script"; then
+    rm -f "$tmp_script"
+    die "官方安装脚本执行失败"
+  fi
+  rm -f "$tmp_script"
+  save_meta "$tool" "script-$(date +%Y%m%d)"
+  log "$tool 安装完成"
+}
+
 do_install() {
   local tool="$1" tag target asset url tmp installed
+  if [ "${INSTALLER:-}" = "official-script" ]; then
+    _install_via_script "$tool"
+    return 0
+  fi
   if [ "$TOOL_VERSION" = "latest" ]; then
     log "解析 $tool 最新版本..."
     tag="$(resolve_latest_tag)"
@@ -244,6 +267,9 @@ do_install() {
 
 do_upgrade() {
   local tool="$1" latest current
+  if [ "${INSTALLER:-}" = "official-script" ]; then
+    die "该工具经官方脚本安装，请用其自身机制更新（如 brew update）"
+  fi
   log "解析最新版本..."
   latest="$(resolve_latest_tag)"
   [ -n "$latest" ] || die "无法解析最新版本（网络问题可加 --proxy）"
@@ -282,6 +308,9 @@ do_status() {
 
 do_remove() {
   local tool="$1" b
+  if [ "${INSTALLER:-}" = "official-script" ]; then
+    die "该工具经官方脚本安装，卸载请用官方方式（brook 不代拆）"
+  fi
   for b in ${BINARIES:-}; do
     rm -f "$BROOK_BIN_DIR/$b"
   done

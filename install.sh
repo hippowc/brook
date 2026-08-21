@@ -9,6 +9,10 @@ BIN_DIR="${BROOK_BIN_DIR:-$HOME/.local/bin}"
 
 echo "brook 安装器（GitHub release 二进制安装器）"
 command -v git >/dev/null 2>&1 || { echo "请先安装 git"; exit 1; }
+if [ "$(uname -s)" = "Darwin" ] && ! xcode-select -p >/dev/null 2>&1; then
+  echo "提示：macOS 未检测到 Command Line Tools（含 git）"
+  echo "      接下来如弹出系统安装对话框，点安装，完成后重新运行本脚本"
+fi
 
 if [ -d "$BROOK_DIR/.git" ]; then
   git -C "$BROOK_DIR" pull --ff-only || echo "（更新失败，先用本地版本）"

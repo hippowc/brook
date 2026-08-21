@@ -4,7 +4,7 @@
 
 brook = GitHub release 二进制安装器：把 GitHub Releases 发布的命令行工具一键装到 `~/.local/bin`（自动加入 PATH）。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
 
-**收录标准**：只收"GitHub 仓库官方发布、有简单二进制资产"的工具。命名不规则（按 OS 版本命名、.app 包、仅源码 release）、非官方构建、需要编译的，一律不收（如 mpv、ffmpeg）。
+**收录标准**：以"GitHub 仓库官方发布、有简单二进制资产"的工具为主；另接受"官方安装脚本"类（tool.conf 写 `INSTALLER="official-script"` + `SCRIPT_URL`，引擎委托执行上游脚本，brew 属此类）。命名不规则（按 OS 版本命名、.app 包、仅源码 release）、非官方构建、需要编译的，一律不收（如 mpv、ffmpeg）。
 
 ## 架构
 
