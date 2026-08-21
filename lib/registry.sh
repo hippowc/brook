@@ -27,7 +27,7 @@ target_of() {
   local var t
   var="TARGET_$(os)_$(arch)"
   t="$(eval "printf '%s' \"\${$var:-}\"")"
-  [ -n "$t" ] || die "该工具没有 $(os)-$(arch) 的发行包映射（补 registry 里的 $var）"
+  [ -n "$t" ] || die "该工具没有 $(os)-$(arch) 的发行包映射（补 registry 里的 ${var}）"
   echo "$t"
 }
 
@@ -66,7 +66,7 @@ verify_checksum() {
     else
       actual="$(shasum -a 256 "$tmp/archive" | awk '{print $1}')"
     fi
-    [ "$expect" = "$actual" ] || die "sha256 校验失败（expect=$expect actual=$actual）"
+    [ "$expect" = "$actual" ] || die "sha256 校验失败（expect=$expect actual=${actual}）"
     log "sha256 校验通过"
   else
     warn "无法获取 .sha256 旁路文件，跳过校验"
@@ -182,7 +182,7 @@ do_install() {
   [ -n "$tag" ] || die "无法解析版本（网络问题可加 --proxy）"
   installed="$(installed_tag_of "$tool")"
   if [ "$installed" = "$tag" ] && [ "$FORCE" != 1 ] && binaries_present "$tool"; then
-    log "$tool 已安装（$tag），跳过（--force 可强制重装）"
+    log "$tool 已安装（${tag}），跳过（--force 可强制重装）"
     return 0
   fi
   target="$(target_of)"
@@ -201,7 +201,7 @@ do_install() {
     if [ "$code" = "200" ] && [ -s "$tmp/archive" ]; then
       chosen="$asset"
       if [ "$pat" != "$ASSET" ]; then
-        warn "主映射资产缺失，使用兜底候选：$asset（建议更新 registry 映射）"
+        warn "主映射资产缺失，使用兜底候选：${asset}（建议更新 registry 映射）"
       fi
       break
     fi
@@ -211,7 +211,7 @@ do_install() {
       continue
     fi
     rm -rf "$tmp"
-    die "下载失败（HTTP $code；国内网络可加 --proxy，brook proxies 查看预设）"
+    die "下载失败（HTTP ${code}；国内网络可加 --proxy，brook proxies 查看预设）"
   done
   # 所有候选均缺失：枚举该 release 的真实资产列表，按平台筛选
   if [ -z "$chosen" ]; then
@@ -221,7 +221,7 @@ do_install() {
     code="$(curl -fL --retry 1 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
     if [ "$code" != "200" ] || [ ! -s "$tmp/archive" ]; then
       rm -rf "$tmp"
-      die "下载失败（HTTP $code）"
+      die "下载失败（HTTP ${code}）"
     fi
   fi
   verify_checksum "$tmp" "$url"
@@ -230,7 +230,7 @@ do_install() {
   rm -rf "$tmp"
   save_meta "$tool" "$tag"
   ensure_bin_path
-  log "已安装 $tool（$tag）→ $BROOK_BIN_DIR"
+  log "已安装 ${tool}（${tag}）→ $BROOK_BIN_DIR"
   if [ -f "$BROOK_HOME/hooks/$tool.sh" ]; then
     log "下一步：brook $tool config"
   fi
@@ -243,7 +243,7 @@ do_upgrade() {
   [ -n "$latest" ] || die "无法解析最新版本（网络问题可加 --proxy）"
   current="$(installed_tag_of "$tool")"
   if [ "$latest" = "$current" ] && binaries_present "$tool"; then
-    log "已是最新版（$current）"
+    log "已是最新版（${current}）"
     return 0
   fi
   TOOL_VERSION="$latest"
@@ -257,7 +257,7 @@ do_status() {
   echo "仓库:    ${REPO:-}"
   tag="$(installed_tag_of "$tool")"
   if [ -n "$tag" ]; then
-    echo "安装:    ✓ $tag（$(sed -n 's/^date=//p' "$BROOK_META_DIR/$tool")）"
+    echo "安装:    ✓ ${tag}（$(sed -n 's/^date=//p' "$BROOK_META_DIR/$tool")）"
   else
     echo "安装:    ✗ 未安装（brook $tool install）"
   fi

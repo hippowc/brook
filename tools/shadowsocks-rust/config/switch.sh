@@ -30,7 +30,7 @@ ssoff() {
   echo "proxy off."
 }
 FUNCS
-  log "sson/ssoff 已写入 $rc（source 后生效）"
+  log "sson/ssoff 已写入 ${rc}（source 后生效）"
   log "  sson = 起 sslocal + 设代理环境变量；ssoff = 停 + 清环境变量"
 }
 

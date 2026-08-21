@@ -6,7 +6,7 @@ config_desc() { echo "生成客户端配置：服务器地址/端口/密码 → 
 config_run() {
   local cfg="$HOME/.config/shadowsocks-rust/config.json"
   if [ -f "$cfg" ]; then
-    log "配置已存在：$cfg（如需修改请手动编辑）"
+    log "配置已存在：${cfg}（如需修改请手动编辑）"
     return 0
   fi
   [ -t 0 ] || die "生成配置需要交互终端"
@@ -29,7 +29,7 @@ config_run() {
 }
 CFG
   chmod 600 "$cfg"
-  log "客户端配置已写入：$cfg（权限 600）"
+  log "客户端配置已写入：${cfg}（权限 600）"
   log "下一步：brook shadowsocks-rust config switch（装 sson/ssoff 开关）"
 }
 

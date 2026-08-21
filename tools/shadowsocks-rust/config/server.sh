@@ -6,7 +6,7 @@ config_desc() { echo "生成服务端配置：端口/密码 → server.json（�
 config_run() {
   local cfg="$HOME/.config/shadowsocks-rust/server.json"
   if [ -f "$cfg" ]; then
-    log "配置已存在：$cfg（如需修改请手动编辑）"
+    log "配置已存在：${cfg}（如需修改请手动编辑）"
     return 0
   fi
   [ -t 0 ] || die "生成配置需要交互终端"
@@ -27,7 +27,7 @@ config_run() {
 }
 CFG
   chmod 600 "$cfg"
-  log "服务端配置已写入：$cfg（权限 600）"
+  log "服务端配置已写入：${cfg}（权限 600）"
   log "启动：ssserver -c $cfg"
   log "记得：防火墙放行端口（ufw allow $port/tcp && ufw allow $port/tcp）；常驻请用 systemd 托管"
 }

@@ -26,7 +26,7 @@ wire_api = "$wire_api"
 CFG
   install -m 0644 "$BROOK_HOME/tools/codex/catalog.json" \
     "$HOME/.codex/model-catalog.local.json"
-  log "配置已写入 ~/.codex/config.toml（$name / $model）"
+  log "配置已写入 ~/.codex/config.toml（$name / ${model}）"
 }
 
 _bailian_ensure_key() {
@@ -39,9 +39,9 @@ _bailian_ensure_key() {
     [ -n "$(printenv "$var" 2>/dev/null || true)" ] && return 0
   fi
   if [ -t 0 ]; then
-    read -rsp "请粘贴 $var（不回显）: " k; echo
+    read -rsp "请粘贴 ${var}（不回显）: " k; echo
   else
-    die "需要 $var（环境变量或在 $rc 中 export）"
+    die "需要 ${var}（环境变量或在 $rc 中 export）"
   fi
   [ -n "$k" ] || die "key 不能为空"
   printf 'export %s=%q\n' "$var" "$k" >> "$rc"
