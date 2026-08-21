@@ -1,6 +1,6 @@
 # brew 常见用法
 
-macOS 的包管理器，brook 装不了的工具（eza、mpv、ffmpeg…）基本都靠它。
+brook 装不了的工具（eza、mpv、ffmpeg…）基本都靠它。
 
 ## 基本
 
@@ -24,5 +24,5 @@ brew install --cask <名字>     # 装 GUI 应用（macfuse 等）
 
 ## 注意
 
-- Apple Silicon 上 brew 装在 /opt/homebrew，装完按它的提示把 eval 行加进 shell rc
+- Apple Silicon 上 brew 装在 /opt/homebrew，装完按提示把 eval 行加进 shell rc
 - 国内网络慢可换源（清华/中科大镜像），搜"homebrew 镜像"按步骤执行

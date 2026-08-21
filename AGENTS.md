@@ -4,7 +4,12 @@
 
 brook = GitHub release 二进制安装器：把 GitHub Releases 发布的命令行工具一键装到 `~/.local/bin`（自动加入 PATH）。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
 
-**收录标准**：以"GitHub 仓库官方发布、有简单二进制资产"的工具为主；另接受"官方安装脚本"类（tool.conf 写 `INSTALLER="official-script"` + `SCRIPT_URL`，引擎委托执行上游脚本，brew 属此类）。命名不规则（按 OS 版本命名、.app 包、仅源码 release）、非官方构建、需要编译的，一律不收（如 mpv、ffmpeg）。
+**收录标准（双轨，代码与数据完全独立）**：
+
+- `tools/` 轨：只收"GitHub 仓库官方发布、有简单二进制资产"的工具，走完整流水线（install/upgrade/status/remove）。命名不规则（按 OS 版本命名、.app 包、仅源码 release）、非官方构建、需要编译的，一律不收（如 mpv、ffmpeg）。
+- `official/` 轨：超级官方应用——只收官网首屏一行安装命令（URL 冻结级稳定），brook 只管装，装后由工具自身管理。准入从严：必须是 canonical 命令；有 release 二进制的优先走 tools/ 轨；清单宁短勿长。
+
+两轨互不引用：tools/ 只由 lib/registry.sh 处理，official/ 只由 lib/official.sh 处理。
 
 ## 架构
 
@@ -13,8 +18,10 @@ brook               # 入口与子命令分发（经符号链接调用时先解�
 install.sh          # 一行安装器：克隆 ~/.brook + 软链命令 + PATH
 lib/core.sh         # 基础：help / list / 分发 / ask / log / os / arch / rc
 lib/proxy.sh        # 代理：预设查找与 URL 改写（prefix / replace 两种模式）
-lib/registry.sh     # 安装引擎：版本解析、候选链、下载、解压、安装、元数据
+lib/registry.sh     # tools/ 轨引擎：版本解析、候选链、下载、解压、安装、元数据
+lib/official.sh     # official/ 轨：取官方脚本并执行（只管装）
 proxies.conf        # 代理预设（含实测日期与速度注释）
+official/<应用>.conf # 超级官方应用（官网一行命令）；同名 .usage.md 为用法文档
 tools/<工具>/        # 一个目录 = 一个工具的一切
 ├── tool.conf       # release 映射（必须）
 ├── config/         # 配置实践（可选）：一个文件一个具名实践
@@ -45,6 +52,10 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 ### 新增配置实践
 
 `tools/<工具>/config/<名字>.sh`，定义 `config_desc` / `config_run` / `config_status`（可选）。实践 = 脚本或配置文件的增删改，保持简单；粒度按用户视角切分（用户眼中"不同的事"就是不同的实践）。
+
+### 新增超级官方应用
+
+`official/<名字>.conf`：`DESC`（明示需要 sudo/自管理等差异）、`SCRIPT_URL`（官网首屏那一行的脚本地址）、`BINARIES`（状态检测用）。可选 `<名字>.usage.md`。准入标准见文首收录标准。
 
 ### 更新代理预设
 

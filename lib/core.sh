@@ -93,6 +93,10 @@ install 选项：
 
 支持的格式：tar.gz / tar.xz / zip / zst / 裸二进制；
 上游改资产命名时自动降级：预置候选 → 枚举真实资产列表（详见 README）。
+
+超级官方应用（官网一行命令安装，brook 只管装）：
+  brook brew install                 安装 Homebrew
+  brook rustup install               安装 Rust 工具链
 USAGE
 }
 
@@ -120,6 +124,13 @@ list_tools() {
     fi
     printf '%-16s %-16s %-6s %s\n' "$tool" "$status" "$cfg" "$desc"
   done
+  if ls "$BROOK_HOME"/official/*.conf >/dev/null 2>&1; then
+    echo
+    echo "超级官方应用（官方一行命令安装，brook 只管装，装后由工具自身管理）："
+    echo
+    printf '%-16s %-12s %s\n' "应用" "状态" "说明"
+    official_list
+  fi
   echo
   echo "标 ✓ 配置的工具装完后记得运行：brook <工具> config"
   echo "不会用某个工具？brook <工具> usage 查看常见用法速查"
@@ -154,7 +165,14 @@ brook_main() {
     upgrade) self_upgrade ;;
     *)
       local conf="$BROOK_HOME/tools/$cmd/tool.conf"
-      [ -f "$conf" ] || die "未知工具 '$cmd'（brook list 查看可用工具）"
+      if [ ! -f "$conf" ]; then
+        if [ -f "$BROOK_HOME/official/$cmd.conf" ]; then
+          shift
+          run_official "$cmd" "${1:-status}"
+          return 0
+        fi
+        die "未知工具 '$cmd'（brook list 查看可用工具）"
+      fi
       shift
       local action="${1:-status}"
       shift || true

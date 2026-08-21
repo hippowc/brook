@@ -28,7 +28,10 @@ brook proxies                               # 代理预设
 
 ## 支持哪些工具
 
-工具库持续扩充，以 `brook list` 输出为准（含安装状态与配置支持标记）。
+以 `brook list` 输出为准（含安装状态与配置支持标记）。分两类：
+
+- **GitHub release 二进制工具**：完整流水线（install / upgrade / status / remove），见 `tools/`
+- **超级官方应用**：官网一行命令安装（brew、rustup），brook 只管装，见 `official/`
 
 ## 新增一个工具
 
