@@ -37,7 +37,7 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 
 1. 用 GitHub API 查该仓库最新 release 的**完整资产列表**，确认命名格式与平台覆盖
 2. 建 `tools/<名字>/tool.conf`，写实测过的映射（字段说明见 README）
-3. 可选：`config/<实践>.sh`（配置实践）、`usage.md`（用法速查）
+3. 可选：`config/<实践>.sh`（配置实践）、`usage.md`（用法速查）；不支持的平台可在 tool.conf 写 `NOTE_<os>="替代方案提示"`（如 macOS 引导用户走 brew）
 4. 实测：隔离 HOME 跑一遍 install（见下节）
 
 资产命名必须实测，不许猜。

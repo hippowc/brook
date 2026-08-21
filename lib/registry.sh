@@ -24,10 +24,16 @@ resolve_latest_tag() {
 }
 
 target_of() {
-  local var t
+  local var t note
   var="TARGET_$(os)_$(arch)"
   t="$(eval "printf '%s' \"\${$var:-}\"")"
-  [ -n "$t" ] || die "该工具没有 $(os)-$(arch) 的发行包映射（补 registry 里的 ${var}）"
+  if [ -z "$t" ]; then
+    note="$(eval "printf '%s' \"\${NOTE_$(os)_$(arch):-\${NOTE_$(os):-}}\"")"
+    if [ -n "$note" ]; then
+      die "上游未提供 $(os)-$(arch) 的发行包：$note"
+    fi
+    die "上游未提供 $(os)-$(arch) 的发行包（该工具可能不支持此平台；如确属映射遗漏，补 tools/$tool/tool.conf 的 $var）"
+  fi
   echo "$t"
 }
 
