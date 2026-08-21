@@ -78,6 +78,7 @@ brook —— GitHub release 二进制安装器
   brook <tool> config <实践>           执行指定配置实践
   brook <tool> usage                  查看常见用法速查
   brook <tool> remove                 移除
+  brook upgrade                       更新 brook 自身
   brook proxies                       查看加速代理预设
 
 install 选项：
@@ -124,12 +125,33 @@ list_tools() {
   echo "不会用某个工具？brook <工具> usage 查看常见用法速查"
 }
 
+self_upgrade() {
+  if [ ! -d "$BROOK_HOME/.git" ]; then
+    die "$BROOK_HOME 不是 git 克隆，无法自更新（请用 install.sh 重装）"
+  fi
+  local before after
+  before="$(git -C "$BROOK_HOME" rev-parse --short HEAD 2>/dev/null)"
+  log "更新 brook..."
+  if git -C "$BROOK_HOME" pull --ff-only; then
+    after="$(git -C "$BROOK_HOME" rev-parse --short HEAD 2>/dev/null)"
+    if [ "$before" = "$after" ]; then
+      log "已是最新版（$after）"
+    else
+      log "已更新：$before → $after"
+      log "查看变化：git -C $BROOK_HOME log --oneline ${before}..HEAD"
+    fi
+  else
+    die "更新失败（可能有本地改动或网络问题：git -C $BROOK_HOME status 检查）"
+  fi
+}
+
 brook_main() {
   local cmd="${1:-help}"
   case "$cmd" in
     help|-h|--help) usage ;;
     list) list_tools ;;
     proxies) list_proxies ;;
+    upgrade) self_upgrade ;;
     *)
       local conf="$BROOK_HOME/tools/$cmd/tool.conf"
       [ -f "$conf" ] || die "未知工具 '$cmd'（brook list 查看可用工具）"

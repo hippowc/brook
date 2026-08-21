@@ -20,6 +20,7 @@ brook fd usage                              # 常见用法速查
 brook codex status                          # 状态
 brook codex upgrade                         # 升级
 brook codex remove                          # 移除
+brook upgrade                               # 更新 brook 自身
 brook proxies                               # 代理预设
 ```
 
