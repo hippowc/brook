@@ -135,7 +135,7 @@ install_binaries() {
 save_meta() {
   local tool="$1" tag="$2"
   mkdir -p "$BROOK_META_DIR"
-  printf 'tag=%s\ndate=%s\nrepo=%s\n' "$tag" "$(date '+%Y-%m-%d %H:%M:%S')" "$REPO" > "$BROOK_META_DIR/$tool"
+  printf 'tag=%s\ndate=%s\nrepo=%s\n' "$tag" "$(date '+%Y-%m-%d %H:%M:%S')" "${REPO:-}" > "$BROOK_META_DIR/$tool"
 }
 
 # 候选链全部 miss 时：枚举 release 真实资产，按 target 三元组筛选
