@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# 测试用假 curl —— 离线模拟 brook 用到的三类 GitHub 调用
+#   A) -o /dev/null --max-redirs 5 -w '%{url_effective}'  github.com/.../releases/latest
+#        → 输出重定向后的最终 URL（$FAKE_LATEST_URL）
+#   B) api.github.com/repos/.../releases/{latest,tags/<tag>}  → 输出 JSON
+#   C) -fL -o FILE -w '%{http_code}' github.com/<repo>/releases/download/<tag>/<asset>
+#        → 从 $FAKE_GH_ROOT/<repo>/<tag>/<asset> 拷贝，输出 HTTP 码（缺失=404）
+set -u
+
+# doctor 等会探测 curl 版本：像真 curl 一样应答
+case "$1" in
+  --version|-V)
+    echo "curl 8.5.0 (fake for brook tests) libcurl/8.5.0"
+    exit 0 ;;
+esac
+
+url=""; out=""; fmt=""; prev=""
+for a in "$@"; do
+  case "$a" in
+    -o|-w) prev="$a" ;;
+    http*) url="$a" ;;
+    *)
+      case "$prev" in
+        -o) out="$a"; prev="" ;;
+        -w) fmt="$a"; prev="" ;;
+      esac
+      ;;
+  esac
+done
+[ -n "$url" ] || { echo "fake curl: 未找到 URL（args: $*）" >&2; exit 2; }
+
+# A) releases/latest 重定向解析
+if printf '%s' "$url" | grep -q '/releases/latest$'; then
+  if printf '%s' "$fmt" | grep -q 'url_effective'; then
+    printf '%s\n' "${FAKE_LATEST_URL:-https://github.com/placeholder/releases/tag/v1.0.0}"
+  fi
+  exit 0
+fi
+
+# B) GitHub API
+if printf '%s' "$url" | grep -q 'api.github.com/repos/'; then
+  if printf '%s' "$url" | grep -q '/releases/latest$'; then
+    printf '{"tag_name":"%s","name":"%s"}\n' "${FAKE_TAG:-v1.0.0}" "${FAKE_TAG:-v1.0.0}"
+    exit 0
+  fi
+  if [ -n "${FAKE_ASSET_LIST:-}" ]; then
+    printf '%s\n' "$FAKE_ASSET_LIST" | while IFS= read -r n; do
+      [ -n "$n" ] && printf '{"name":"%s"}\n' "$n"
+    done
+  else
+    printf '%s\n' '{"assets":[]}'
+  fi
+  exit 0
+fi
+
+# C) 资产下载：URL → $FAKE_GH_ROOT/<repo>/<tag>/<asset>
+if printf '%s' "$url" | grep -q 'github.com/.*/releases/download/'; then
+  rel="$(printf '%s' "$url" | sed -e 's#https://github.com/##' -e 's#/releases/download/#/#')"
+  file="$FAKE_GH_ROOT/$rel"
+  if [ -f "$file" ]; then
+    if [ -n "$out" ] && [ "$out" != "/dev/null" ]; then
+      cp "$file" "$out"
+    elif [ -z "$out" ]; then
+      cat "$file"
+    fi
+    code=200
+  else
+    code=404
+    echo "fake curl: 资产不存在（$file）" >&2
+  fi
+  if printf '%s' "$fmt" | grep -q 'http_code'; then
+    printf '%s\n' "$code"
+  fi
+  [ "$code" = "200" ] || exit 22
+  exit 0
+fi
+
+echo "fake curl: 未处理的 URL $url" >&2
+exit 2

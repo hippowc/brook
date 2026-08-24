@@ -1,0 +1,32 @@
+name: test
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    name: L0/L1 单测 + L2 静态校验
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]   # macOS runner 自带 bash 3.2，顺带真机兼容验证
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 跑离线测试
+        run: bash tests/run_tests.sh
+
+  smoke:
+    name: 真机冒烟（真实网络安装 bat）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: doctor 基线自检
+        run: bash -lc './brook doctor'
+      - name: 真实安装/状态/移除 bat
+        run: |
+          set -e
+          bash -lc './brook install bat --version v0.26.1'
+          bash -lc './brook status bat'
+          bash -lc './brook remove bat'
