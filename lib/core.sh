@@ -79,6 +79,7 @@ brook —— GitHub release 二进制安装器
   brook remove <工具>...               移除
   brook proxies                       查看加速代理预设
   brook proxies test                  实测各代理当前速度
+  brook doctor                        基线自检（下载/解压/安装目录/网络）
   brook --version                     显示版本
 
 install 选项：
@@ -207,12 +208,108 @@ self_upgrade() {
   fi
 }
 
+# 按平台给补装命令（apt / brew）
+_pkg_hint() {
+  case "$(os)" in
+    linux) echo "sudo apt-get install -y $1" ;;
+    macos) echo "brew install $1" ;;
+  esac
+}
+
+# doctor —— 基线自检：brook 的下载/解压/安装依赖这些，缺了先按提示补齐
+doctor() {
+  local fail=0 v code d
+
+  echo "系统:      $(os) $(arch)（bash ${BASH_VERSION:-?}）"
+  echo
+  echo "基线工具:  （✗ 为缺失，按提示补齐）"
+
+  if have git; then
+    v="$(git --version 2>/dev/null | awk '{print $3}')"
+    echo "  ✓ git          ${v:-?}（安装与自更新依赖）"
+  else
+    case "$(os)" in
+      linux) echo "  ✗ git          补: sudo apt-get install -y git" ;;
+      macos) echo "  ✗ git          补: xcode-select --install（Command Line Tools 自带）" ;;
+    esac
+    fail=1
+  fi
+
+  if have curl; then
+    v="$(curl --version 2>/dev/null | head -1 | awk '{print $2}')"
+    echo "  ✓ curl         ${v:-?}（下载通道）"
+  else
+    echo "  ✗ curl         补: $(_pkg_hint curl)"
+    fail=1
+  fi
+
+  if have tar; then
+    echo "  ✓ tar          $(tar --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1)（解压基线）"
+  else
+    echo "  ✗ tar          补: $(_pkg_hint tar)"
+    fail=1
+  fi
+
+  if have unzip; then
+    echo "  ✓ unzip        解压 zip"
+  elif have python3; then
+    echo "  ✓ python3      解压 zip（unzip 缺失，降级用 zipfile 模块）"
+  else
+    echo "  ✗ zip 解压     补: $(_pkg_hint unzip)（或装 python3）"
+    fail=1
+  fi
+
+  if have zstd; then
+    v="$(zstd --version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+    echo "  ✓ zstd         ${v:-?}（.zst 资产）"
+  else
+    echo "  △ zstd         补: $(_pkg_hint zstd)（可选，只影响 codex 等 .zst 资产）"
+  fi
+
+  echo
+  echo "安装目录:  $BROOK_BIN_DIR"
+  d="$BROOK_BIN_DIR"
+  while [ ! -d "$d" ]; do d="$(dirname "$d")"; done
+  if [ -d "$BROOK_BIN_DIR" ] && [ -w "$BROOK_BIN_DIR" ]; then
+    echo "  ✓ 存在且可写"
+  elif [ -w "$d" ]; then
+    echo "  △ 尚不存在（首次安装时自动创建）"
+  else
+    echo "  ✗ 不可写（检查 $d 的属主与权限）"
+    fail=1
+  fi
+
+  echo
+  echo "网络:      GitHub 连通性"
+  if ! have curl; then
+    echo "  ? 无法探测（缺 curl）"
+  else
+    code="$(curl -s -o /dev/null --connect-timeout 5 --max-time 10 -w '%{http_code}' https://api.github.com/ 2>/dev/null || true)"
+    if [ "$code" = "200" ]; then
+      echo "  ✓ 可达"
+    else
+      echo "  ✗ 不可达（国内网络常见，不算失败）"
+      echo "      安装时加代理: brook install <工具> --proxy gh-proxy"
+      echo "      实测代理速度: brook proxies test"
+    fi
+  fi
+
+  echo
+  if [ "$fail" = 1 ]; then
+    warn "基线有缺口：按上面 ✗ 项提示补齐后再用 brook"
+    return 1
+  fi
+  log "基线完整，放心使用"
+  return 0
+}
+
 brook_main() {
   local cmd="${1:-help}"
   case "$cmd" in
     help|-h|--help) usage ;;
     --version|-V) brook_version ;;
     list) list_tools ;;
+    doctor) doctor ;;
     proxies)
       if [ "${2:-}" = "test" ]; then proxies_test; else list_proxies; fi
       ;;

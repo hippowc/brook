@@ -26,7 +26,7 @@ brook = 环境引导器（starter）：全新机器上，当没有更好的安�
 ```
 brook               # 入口与子命令分发（经符号链接调用时先解析真实路径）
 install.sh          # 一行安装器：克隆 ~/.brook + 软链命令 + PATH
-lib/core.sh         # 基础：help / list / 分发 / ask / log / os / arch / rc
+lib/core.sh         # 基础：help / list / doctor / 分发 / ask / log / os / arch / rc
 lib/proxy.sh        # 代理：预设查找与 URL 改写（prefix / replace 两种模式）
 lib/registry.sh     # tools/ 轨引擎：版本解析、候选链、下载、解压、安装、元数据
 lib/official.sh     # official/ 轨：取官方脚本并执行（只管装；预检前置依赖、检测安装状态）

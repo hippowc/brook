@@ -15,6 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /t
 ## 使用
 
 ```bash
+brook doctor                                # 基线自检（缺什么、怎么补）
 brook list                                  # 可用工具及状态
 brook install codex --proxy gh-proxy        # 安装（国内建议加代理）
 brook config codex bailian                  # 配置（支持的工具，配置实践名）

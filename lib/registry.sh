@@ -108,7 +108,7 @@ extract_archive() {
       ;;
     zst)
       # 实测（2026-08-20）：codex 的 .zst 资产是 zstd 压缩的裸二进制，不是 tar
-      have zstd || die "解压 .zst 需要 zstd 工具"
+      have zstd || die "解压 .zst 需要 zstd 工具：Linux 用 sudo apt-get install -y zstd，macOS 用 brew install zstd"
       first=""
       for b in $BINARIES; do first="$b"; break; done
       zstd -dc "$tmp/archive" > "$tmp/$first"
