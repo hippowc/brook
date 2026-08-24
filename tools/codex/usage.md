@@ -3,7 +3,7 @@
 终端编码 Agent：读代码、改文件、跑命令、提交 git。先跑 `brook config codex` 选模型后端：
 
 - `brook config codex bailian`   阿里云百炼（qwen3.8-max-preview）
-- `brook config codex deepseek`  DeepSeek 官方（deepseek-v4-pro，`--profile deepseek-flash` 切 flash）
+- `brook config codex deepseek`  百炼托管的 DeepSeek（deepseek-v4-pro，`--profile deepseek-flash` 切 flash；复用百炼 key）
 
 ## 启动
 

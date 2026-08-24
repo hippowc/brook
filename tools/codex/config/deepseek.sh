@@ -1,18 +1,18 @@
-# 配置实践：接入 DeepSeek 官方 API（OpenAI 兼容，chat completions）
-# 与 bailian 实践同构（换后端 = 换这组变量）；差异点：
-#   - wire_api = chat（DeepSeek 无 responses API）
-#   - 双模型：默认 pro，profile deepseek-flash 切 flash
-# 注意：会覆盖 ~/.codex/config.toml（后端切换语义）；切回百炼跑 brook config codex bailian
+# 配置实践：使用百炼托管的 DeepSeek 模型（deepseek-v4 系列）
+# 与 bailian 实践同后端：百炼 OpenAI 兼容端点 + 百炼 key（OPENAI_API_KEY），仅模型不同。
+# 实测（2026-08-24）：百炼 /responses 端点对这两个模型可用，故 wire_api=responses。
+# 双模型：默认 pro，profile deepseek-flash 切 flash。
+# 注意：会覆盖 ~/.codex/config.toml（后端切换语义）；切回 qwen 跑 brook config codex bailian
 
-config_desc() { echo "接入 DeepSeek 官方 API（config.toml + key，pro/flash 双模型）"; }
+config_desc() { echo "使用百炼托管的 DeepSeek 模型（复用百炼 key，pro/flash 双模型）"; }
 
 config_run() {
   local name="deepseek"
-  local base_url="https://api.deepseek.com/v1"
+  local base_url="https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
   local model="deepseek-v4-pro-0813"         # 默认模型
   local model_alt="deepseek-v4-flash-0731"   # 备选模型（--profile deepseek-flash）
-  local key_env="DEEPSEEK_API_KEY"
-  local wire_api="chat"
+  local key_env="OPENAI_API_KEY"             # 百炼 key（与 bailian 实践同源，已配过则免粘贴）
+  local wire_api="responses"                 # 实测：百炼 responses 端点支持这两个模型
 
   _deepseek_ensure_key "$key_env"
   mkdir -p "$HOME/.codex"
@@ -21,7 +21,7 @@ model = "$model"
 model_provider = "$name"
 
 [model_providers.$name]
-name = "DeepSeek"
+name = "DeepSeek（百炼托管）"
 base_url = "$base_url"
 env_key = "$key_env"
 wire_api = "$wire_api"
