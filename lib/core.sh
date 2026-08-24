@@ -133,7 +133,14 @@ _entry_row() {
   fi
   case "$f" in
     */tools/*)
-      if [ -n "$(installed_tag_of "$tool")" ] && binaries_present "$tool"; then
+      if [ "$(source "$f"; echo "${EXTERNAL_INSTALL:-0}")" = 1 ]; then
+        # 外部工具（系统/包管理器提供，如 git）：按 PATH 检测，brook 不代装
+        if ( source "$f"; for b in ${BINARIES:-}; do command -v "$b" >/dev/null 2>&1 && exit 0; done; exit 1 ); then
+          status="✓ 系统自带"
+        else
+          status="✗ 未检测到"
+        fi
+      elif [ -n "$(installed_tag_of "$tool")" ] && binaries_present "$tool"; then
         status="✓ $(installed_tag_of "$tool")"
       elif [ -n "$(installed_tag_of "$tool")" ]; then
         status="△ $(installed_tag_of "$tool")(缺二进制)"
@@ -482,8 +489,22 @@ run_tool() {
   source "$BROOK_HOME/tools/$tool/tool.conf"
   fn="$(printf '%s' "$tool" | tr '-' '_')"
   case "$action" in
-    install) do_install "$tool" ;;
-    upgrade) do_upgrade "$tool" ;;
+    install)
+      if [ "${EXTERNAL_INSTALL:-0}" = 1 ]; then
+        if [ -n "${INSTALL_HINT:-}" ]; then
+          log "$tool 由系统/其他包管理器提供，brook 不代装：${INSTALL_HINT}"
+        else
+          log "$tool 不在 brook 安装范围（见 README 收录标准）"
+        fi
+        return 0
+      fi
+      do_install "$tool" ;;
+    upgrade)
+      if [ "${EXTERNAL_INSTALL:-0}" = 1 ]; then
+        log "$tool 由系统/其他包管理器管理，更新请用系统方式"
+        return 0
+      fi
+      do_upgrade "$tool" ;;
     status)  do_status "$tool" ;;
     remove)  do_remove "$tool" ;;
     usage)

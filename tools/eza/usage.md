@@ -1,31 +1,31 @@
-# eza 常见用法
+# eza 常见用法（ls 的现代替代，仅 Linux 官方包；macOS 用 brew install eza）
 
 ## 基本
 
 ```bash
-eza -l --icons --git         # 长格式 + 图标 + git 状态
-eza --tree --level=2         # 树视图（替 tree）
-eza -D                       # 只看目录
-eza -l -s modified --reverse # 按修改时间倒序
-eza -la                      # 含隐藏文件
+eza -la --icons        # 常用形态：长列表+隐藏+图标
+eza -T                  # 目录树
+eza -l --git            # 显示 git 状态列（±✓）
+eza -l --time-style=long-iso   # 可读时间
+eza -s size -r          # 按大小倒序（最大的在前）
 ```
 
-## 常用选项
+## 进阶组合
 
 ```bash
--l / -a / -aa       # 长格式 / 含隐藏
---icons / --git     # 图标 / git 状态标记
---tree --level=N    # 树视图限深度
---git-ignore        # 跳过 .gitignore 排除的
--s size / --reverse # 排序 / 倒序
---group-directories-first
+eza -la --group-directories-first --git --icons   # 默认别名推荐落这
+alias ls='eza -la --group-directories-first --icons'
+alias ll='eza -l --icons'
+alias lt='eza -T'
+# 配合 fd：大小排序不看权限
+eza -l --no-permissions --size=bytes -s size
 ```
 
-## 推荐 alias（写进 ~/.bashrc）
+## 与 brook
 
-```bash
-alias ls='eza --icons --group-directories-first'
-alias ll='eza -l --icons --git --group-directories-first'
-alias lt='eza --tree --level=2 --git-ignore'
-alias la='eza -la --icons --git'
-```
+macOS 官方不出 macOS 二进制，直接 `brew install eza`（brook 的 NOTE 已提示）。
+
+## 排查
+
+- 图标显示成方块 → 终端需要 Nerd Font 图标字体
+- 中文文件名排序怪 → `--sort=name` 默认按字节，换 `LC_COLLATE=C.UTF-8`

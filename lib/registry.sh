@@ -286,7 +286,13 @@ do_status() {
     echo "安装:    ✗ 未安装（brook install ${tool}）"
   fi
   for b in ${BINARIES:-}; do
-    if [ -x "$BROOK_BIN_DIR/$b" ]; then
+    if [ "${EXTERNAL_INSTALL:-0}" = 1 ]; then
+      if command -v "$b" >/dev/null 2>&1; then
+        echo "二进制:  ✓ $(command -v "$b")（系统自带）"
+      else
+        echo "二进制:  ✗ $b 不在 PATH"
+      fi
+    elif [ -x "$BROOK_BIN_DIR/$b" ]; then
       echo "二进制:  ✓ $BROOK_BIN_DIR/$b"
     else
       echo "二进制:  ✗ $b 不在 $BROOK_BIN_DIR"

@@ -1,37 +1,37 @@
-# fzf 常见用法
+# fzf 常见用法（模糊查找，终端里的 Ctrl+P 体验）
 
-通用模糊过滤器：从 stdin 读行 → 模糊筛选 → 输出选中行。威力全在管道组合。
-
-## 必做：接管快捷键
+## 先把 shell 集成装上（推荐）
 
 ```bash
-echo 'eval "$(fzf --bash)"' >> ~/.bashrc && source ~/.bashrc
-# 之后：Ctrl-R 搜历史、Ctrl-T 补全文件名、Alt-C 跳目录
+eval "$(fzf --bash)"    # 装完执行一次，写进 rc 永久生效（brook config fzf 可自动化）
+# 随后：Ctrl+R 历史搜索 / Ctrl+T 文件选择 / Alt+C cd 跳转
 ```
 
-## 常用选项
+## 基本
 
 ```bash
--m / --multi              # 多选（tab 切换）
---exact                   # 精确匹配，关模糊
---height=40% --reverse    # 内嵌终端下方，输入框在顶
---preview 'bat --color=always {}'   # 预览窗（{} = 选中项）
---query='STR'             # 启动预填搜索词
+fzf                          # 从 stdin 选一行
+vim $(fzf)                   # 选文件打开
+ls | fzf                     # 任何列表都可以筛
 ```
 
-## 两大经典场景（函数写进 ~/.bashrc）
+## 进阶：预览与组合
 
 ```bash
-ff() {  # 按文件名找
-  fd --type f | fzf --preview 'bat --color=always {}' --query="$*" | xargs -r bat
-}
-fw() {  # 按内容找
-  rg -l "$*" | fzf --preview "rg --color=always -n -C 3 -F '$*' {}" --query="$*" | xargs -r bat
-}
+fzf --preview 'bat --color=always {}'          # 文件预览（配合 bat）
+fzf --preview 'cat {}' --preview-window=top:60%
+rg -l "redis" | fzf --preview 'bat --color=always {}'
+fzf --bind 'enter:execute(vim {})'             # 回车直接执行
+git branch --all | fzf                          # 交互式切分支
+git log --oneline | fzf | awk '{print $1}'      # 选 commit
 ```
 
-## 全局默认
+## 配置
 
-```bash
-export FZF_DEFAULT_OPTS='--height=40% --reverse --info=inline --border'
-```
+- `export FZF_DEFAULT_COMMAND='fd --type f --hidden --exclude .git'`（更快更全）
+- 历史搜索只搜命中：`export FZF_DEFAULT_OPTS='--height 40% --reverse --border'`
+
+## 排查
+
+- Ctrl+R 没反应 → 没执行 `fzf --bash`（或 zsh 用 `fzf --zsh`）
+- 中文输入不出结果 → 确认终端输入法在英文模式测一下（fzf 对编码是字节匹配）

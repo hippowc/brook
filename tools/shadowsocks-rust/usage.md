@@ -1,31 +1,41 @@
-# shadowsocks-rust 常见用法
+# shadowsocks-rust 常见用法（ss 客户端/服务端）
 
-加密 TCP/UDP 中继：应用 ─SOCKS5─▶ sslocal ─加密─▶ ssserver ─明文─▶ 目标。
+## 配置实践（brook 提供两套，按需执行）
+
+```bash
+brook config shadowsocks-rust client    # 配置 client 的 IP+密钥+端口（交互式录入）
+brook config shadowsocks-rust server    # 配置服务端（监听端口+密钥+密码）
+brook config shadowsocks-rust switch    # 生成 switch 一键开关脚本（pxon/pxoff）
+```
 
 ## 服务端
 
 ```bash
-ssserver -c svr.json        # 配置示例见 brook config shadowsocks-rust client 生成
-sudo ufw allow 8388/tcp && sudo ufw allow 8388/udp
-ss -lunpt | grep 8388       # 验证监听
+ssserver -c config.json          # 用配置启动
+# 常见：systemd 常驻（brook config server 后按提示装 unit）
 ```
-
-常驻用 systemd（/etc/systemd/system/ssserver.service，ExecStart=ssserver -c ...，
-Restart=on-failure），`systemctl enable --now ssserver`，日志 `journalctl -u ssserver -f`。
 
 ## 客户端
 
 ```bash
-sslocal -c cli.json         # 本机 127.0.0.1:1080 得到 SOCKS5 出口
-curl --socks5-hostname 127.0.0.1:1080 ifconfig.me   # 验证出口 IP
+# local 模式：开本地 SOCKS5 供 curl/浏览器/终端走
+sslocal -c config.json
+curl --socks5 127.0.0.1:1080 https://example.com   # 验证
+export https_proxy=socks5://127.0.0.1:1080 http_proxy=socks5://127.0.0.1:1080
 ```
 
-CLI 工具走代理靠环境变量：`export ALL_PROXY=socks5://127.0.0.1:1080`
-（http_proxy/https_proxy 同设；no_proxy 排除本机/内网）。
-
-## 备忘
+## 进阶（系统代理与终端代理）
 
 ```bash
-ssservice genkey -m "2022-blake3-aes-256-gcm"   # 2022 加密的密码必须这样生成
-nc -vz 服务器IP 8388                              # 从客户端探通
+# 终端全局走代理（每会话）
+export ALL_PROXY=socks5://127.0.0.1:1080
+# 仅 GitHub 走代理（包/工具下载友好）
+export https_proxy=socks5://127.0.0.1:1080
+# 配合 git
+git config --global http.proxy socks5://127.0.0.1:1080
 ```
+
+## 排查
+
+- 连不通 → 端口/密钥/IP 三对照（brook config client 重录）
+- 慢 → 换节点/看服务端负载；本地测试 `curl -x socks5://127.0.0.1:1080 -I https://www.google.com`

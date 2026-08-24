@@ -1,29 +1,35 @@
-# rg 常见用法
+# ripgrep（rg）常见用法
 
-搜文件**内容**。默认跳过 .gitignore 和隐藏文件、智能大小写、多线程。
+极速文本搜索，默认尊重 .gitignore、只搜文本文件、输出带行号。
 
 ## 基本
 
 ```bash
-rg sing-box              # 当前目录递归搜
-rg 'config' -t yaml      # 只在 yaml 文件里搜
-rg 'TODO' -T markdown    # 排除某类文件
-rg -C 3 'listen'         # 前后各 3 行上下文（-A 后 / -B 前）
-rg -l 'sing-box'         # 只输出匹配的文件名
-rg --type-list           # 列出支持的文件类型
+rg  "pattern"                # 当前目录递归
+rg  "TODO|FIXME" src/        # 指定目录
+rg  -i "pattern"             # 忽略大小写
+rg  -l "pattern"             # 只列文件名
+rg  -n --color=always        # 管道给 less/fzf 时带色
+rg  -C 3 "pattern"           # 上下文各 3 行
+rg  "v\d+\.\d+"              # 正则（rg 用 Rust regex，语法与 PCRE 略不同）
 ```
 
-## 常用选项
+## 进阶
 
 ```bash
--i              # 忽略大小写
---hidden        # 也搜隐藏文件
---no-ignore     # 不跳 .gitignore
--g '!*.log'     # glob 过滤（排除 .log）
---no-heading    # 不按文件分组（喂 fzf 常用）
---vimgrep       # file:line:col:text 格式（编辑器跳转）
+rg '^def ' -g '*.py'         # 按 glob 过滤文件类型
+rg -t py 'import'            # 爬常见语言类型（--type-list 看全部）
+rg --hidden --glob '!.git'   # 含隐藏但排除 .git
+rg -c "pattern" | sort -t: -k2 -rn   # 按命中数排序
+rg -l "secret" | xargs sed -i 's/secret/xxx/g'   # 查找并批量替换（慎）
 ```
 
-## 配置
+## 组合
 
-偏好写 `~/.config/ripgrep/config`，并设 `export RIPGREP_CONFIG_PATH=~/.config/ripgrep/config`。
+- `rg -l "redis" | xargs vim`  打开所有命中文件
+- `fzf --bind 'ctrl-r:reload(rg -l {q})'` 实时过滤文件列表
+
+## 排查
+
+- 搜不出中文 → 确认文件编码是 UTF-8（rg 默认按 UTF-8）
+- 大小写不敏感用 `-i`；要 PCRE（回溯）用 `-P`

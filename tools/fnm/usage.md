@@ -1,27 +1,38 @@
-# fnm 常见用法
+# fnm 常见用法（Node 版本管理器，快、跨 shell）
 
-Node 版本管理器：安装/切换官方 node 构建。
-
-## 装完三步
+## 装完必做（brook config fnm shell-init）
 
 ```bash
-brook config fnm shell-init    # 1. 挂进 rc
-source ~/.bashrc               # 2. 生效
-fnm install 22 && fnm use 22   # 3. 装 node 并切换
+brook config fnm shell-init     # 写 eval "$(fnm env --use-on-cd)" 进 rc
+# --use-on-cd：进含 .node-version/.nvmrc 的目录自动切版本
 ```
 
-## 常用
+## 基本
 
 ```bash
-fnm ls-remote            # 可装版本
-fnm ls                   # 已装（* 为当前）
-fnm install --lts        # 装最新 LTS
-fnm default 22           # 设默认版本
-fnm use 20               # 切换
+fnm install --lts               # 装 LTS node（自带 npm/npx）
+fnm install node/20             # 指定大版本
+fnm ls                          # 已装版本
+fnm use lts-lts                 # 切换当前目录用
+fnm default lts-lts             # 设默认
+fnm current                     # 当前版本
 ```
 
-## 说明
+## 进阶
 
-- 进入含 .node-version / .nvmrc 的目录自动切版本（--use-on-cd 已启用）
-- linux 仅支持 x86_64（上游不发 arm64 包）
-- npm 国内镜像：brook mirror npm apply
+```bash
+node -v && npm -v               # 验证 npm 随 node 来
+npm i -g <包>                   # 全局装（装到当前 node 版本名下）
+# 项目固定版本：echo "20" > .node-version（--use-on-cd 自动切）
+fnm ls-remote                   # 看远端版本
+```
+
+## 与 brook
+
+- fnm/uv/g/rustup 是 brook 的"语言工具"四件套：先装管理器，再让管理器装运行时
+- npm 分发的 CLI（opencode 等）由 npm 装，brook 不代管
+
+## 排查
+
+- `fnm: command not found` → 重跑 `brook config fnm shell-init` 并 source
+- npm 全局装完命令找不到 → fnm env 没生效（用 fnm 的 node，PATH 靠 fnm env）

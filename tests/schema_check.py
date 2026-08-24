@@ -44,26 +44,33 @@ def check_tools() -> None:
         tool = conf.parent.name
         t = kv(conf.read_text(encoding="utf-8"))
         tag = f"tools/{tool}/tool.conf"
-        for key in ("DESC", "REPO", "ASSET", "BINARIES", "ARCHIVE"):
-            if not t.get(key):
-                err(f"{tag}: 缺必需字段 {key}")
-        if t.get("CATEGORY") not in ("binary", "language"):
-            err(f"{tag}: CATEGORY 应为 binary|language（实际 {t.get('CATEGORY')!r}）")
-        if t.get("REPO") and not re.match(r'^[^/\s]+/[^/\s]+$', t["REPO"]):
-            err(f"{tag}: REPO 应为 owner/repo（实际 {t['REPO']!r}）")
-        asset = t.get("ASSET", "")
-        if asset and "{{" not in asset:
-            err(f"{tag}: ASSET 应含 {{TAG}}/{{TARGET}} 占位符（实际 {asset!r}）")
-        if t.get("ARCHIVE") not in ("tar.gz", "tar.xz", "zip", "zst", "raw"):
-            err(f"{tag}: ARCHIVE 不在支持集合（实际 {t.get('ARCHIVE')!r}）")
-        if t.get("CHECKSUM") not in ("none", "sha256-sidecar"):
-            err(f"{tag}: CHECKSUM 应为 none|sha256-sidecar（实际 {t.get('CHECKSUM')!r}）")
-        targets = [k for k in t if k.startswith("TARGET_")]
-        if not targets:
-            err(f"{tag}: 至少需要 1 个 TARGET_<os>_<arch> 映射")
-        for k in targets:
-            if not re.match(r'^[A-Za-z0-9_.-]+$', t[k]):
-                err(f"{tag}: {k} 值可疑（实际 {t[k]!r}）")
+        # EXTERNAL_INSTALL=1：系统级工具（如 git），brook 只做配置不代装，字段要求放宽
+        external = t.get("EXTERNAL_INSTALL") == "1"
+        if external:
+            for key in ("DESC", "BINARIES"):
+                if not t.get(key):
+                    err(f"{tag}: 缺必需字段 {key}")
+        else:
+            for key in ("DESC", "REPO", "ASSET", "BINARIES", "ARCHIVE"):
+                if not t.get(key):
+                    err(f"{tag}: 缺必需字段 {key}")
+            if t.get("CATEGORY") not in ("binary", "language"):
+                err(f"{tag}: CATEGORY 应为 binary|language（实际 {t.get('CATEGORY')!r}）")
+            if t.get("REPO") and not re.match(r'^[^/\s]+/[^/\s]+$', t["REPO"]):
+                err(f"{tag}: REPO 应为 owner/repo（实际 {t['REPO']!r}）")
+            asset = t.get("ASSET", "")
+            if asset and "{{" not in asset:
+                err(f"{tag}: ASSET 应含 {{TAG}}/{{TARGET}} 占位符（实际 {asset!r}）")
+            if t.get("ARCHIVE") not in ("tar.gz", "tar.xz", "zip", "zst", "raw"):
+                err(f"{tag}: ARCHIVE 不在支持集合（实际 {t.get('ARCHIVE')!r}）")
+            if t.get("CHECKSUM") not in ("none", "sha256-sidecar"):
+                err(f"{tag}: CHECKSUM 应为 none|sha256-sidecar（实际 {t.get('CHECKSUM')!r}）")
+            targets = [k for k in t if k.startswith("TARGET_")]
+            if not targets:
+                err(f"{tag}: 至少需要 1 个 TARGET_<os>_<arch> 映射")
+            for k in targets:
+                if not re.match(r'^[A-Za-z0-9_.-]+$', t[k]):
+                    err(f"{tag}: {k} 值可疑（实际 {t[k]!r}）")
         if not (conf.parent / "usage.md").exists():
             err(f"tools/{tool}: 缺 usage.md（brook usage {tool} 依赖它）")
         cfgdir = conf.parent / "config"

@@ -34,3 +34,40 @@ load helpers
   # 已在国内源的机器会走"不做改动"短路径，两种都算通过；重点是命令不崩、不落盘
   [[ "$output" == *"[dry-run]"* || "$output" == *"国内源"* || "$output" == *"不做改动"* ]]
 }
+
+
+@test "mirror: new sources listed (crates/maven/docker/homebrew)" {
+  run "$BROOK_HOME/brook" mirror
+  assert_any_output_contains "crates"
+  assert_any_output_contains "maven"
+  assert_any_output_contains "docker"
+  assert_any_output_contains "homebrew"
+}
+
+@test "mirror: crates apply writes ~/.cargo/config.toml" {
+  mkdir -p "$HOME/.cargo"
+  run "$BROOK_HOME/brook" mirror crates apply --dry-run
+  assert_any_output_contains "[dry-run]"
+  run "$BROOK_HOME/brook" mirror crates apply
+  assert_any_output_contains "已写入"
+  grep -q 'rsproxy' "$HOME/.cargo/config.toml"
+}
+
+@test "mirror: maven apply creates settings.xml" {
+  mkdir -p "$HOME/.m2"
+  run "$BROOK_HOME/brook" mirror maven apply --dry-run
+  assert_any_output_contains "[dry-run]"
+  run "$BROOK_HOME/brook" mirror maven apply
+  assert_any_output_contains "已写入"
+  grep -q 'maven.aliyun.com' "$HOME/.m2/settings.xml"
+}
+
+@test "mirror: homebrew apply --dry-run (fake brew)" {
+  run "$BROOK_HOME/brook" mirror homebrew apply --dry-run
+  assert_any_output_contains "[dry-run]"
+}
+
+@test "mirror: docker apply --dry-run (fake docker + linux)" {
+  run "$BROOK_HOME/brook" mirror docker apply --dry-run
+  assert_any_output_contains "[dry-run]"
+}

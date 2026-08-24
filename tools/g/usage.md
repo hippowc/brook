@@ -1,28 +1,35 @@
-# g 常见用法
+# g 常见用法（Go 版本管理器 voidint/g：装/切换官方工具链）
 
-Go 版本管理器：安装/切换官方预编译工具链（相当于 Go 世界的 fnm）。
-
-## 装完三步（顺序不能乱）
+## 装完必做（brook config g shell-init）
 
 ```bash
-brook config g shell-init        # 1. 写 ~/.g/env 并挂进 rc（含国内下载镜像）
-source ~/.bashrc                 # 2. 生效（zsh 改 ~/.zshrc）
-g install 1.24 && g use 1.24     # 3. 装工具链并切换
+brook config g shell-init       # 把 g 的初始化写进 rc（g 用 eval $(g shell-init)）
+g ls-remote                     # 看远端版本
+g install 1.24                  # 装某个 go 版本
+g ls                            # 已装
+g use 1.24                      # 切换当前目录
+g set 1.24                      # 设默认
 ```
 
-## 常用
+## 基本流程
 
 ```bash
-g ls-remote stable     # 可装的稳定版本
-g ls                   # 已装版本（* 为当前）
-g install 1.23.5       # 装指定版本
-g use 1.23.5           # 切换
-g uninstall 1.23.5     # 卸载某版本
-g update               # g 自更新
+g install 1.24 && g use 1.24    # 一次到位
+go version                      # 验证
+go env GOROOT GOCACHE           # 看工具链/缓存位置
+g uninstall 1.24                # 卸某个版本
 ```
 
-## 说明
+## 进阶
 
-- 工具链装在 ~/.g，GOROOT/GOPATH 由 ~/.g/env 管理
-- 下载走 golang.google.cn 官方镜像（~/.g/env 里的 G_MIRROR），国内无需代理
-- 模块代理另配：brook mirror goproxy apply
+```bash
+g self update                   # 更新 g 自身
+g doctor                        # 自检
+# 项目固定版本：目录放 .go-version；或配合 g use 手动切
+# 多个版本切换后注意 GOPATH 缓存按版本隔离，不冲突
+```
+
+## 排查
+
+- `go: command not found` → g 的 PATH 注入没生效（重跑 config + source）
+- 下载慢 → go 官方源在国内慢，配合 goproxy 镜像：`brook mirror goproxy apply`

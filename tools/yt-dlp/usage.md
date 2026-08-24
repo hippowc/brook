@@ -1,37 +1,37 @@
-# yt-dlp 常见用法
+# yt-dlp 常见用法（视频下载：YouTube/B站/抖音等 上千站点）
 
-从网站提取真实媒体地址并下载。依赖 ffmpeg（合并/转码/抽音）。站点改版频繁，常 `yt-dlp -U` 更新。
-
-## 核心：选格式 -f
+## 基本
 
 ```bash
-yt-dlp -F URL                                            # 列出所有可选流（排错首选）
-yt-dlp -f "bestvideo[height<=1080]+bestaudio/best" URL   # 限 1080p + 兜底
-yt-dlp -f "137+251" URL                                  # 直接指定流 ID
-yt-dlp URL                                               # 默认即 bestvideo*+bestaudio/best
+yt-dlp "URL"                    # 下载最佳质量（默认 480p 内）
+yt-dlp -f "bv*+ba/b" "URL"      # 视频+音频分离再合并（最佳）
+yt-dlp -f mp4 "URL"             # 指定容器格式
+yt-dlp -o "~/Downloads/%(title)s.%(ext)s" "URL"
 ```
 
-现代站音视频是分离的两条流，`+` 组合下载再合并。
-
-## 命名与配置
+## 常用选项
 
 ```bash
-yt-dlp -o "%(uploader)s/%(upload_date)s - %(title)s [%(id)s].%(ext)s" URL
+-a list.txt                     # 批量：文件里每行一个 URL
+-x --audio-format mp3           # 只下音频转 mp3
+--playlist-start 1 --playlist-end 5   # 播放列表中 1-5 集
+-c                              # 断点续传（中断后重跑）
+--write-subs --sub-langs "zh-Hans,en"   # 带字幕
+--embed-thumbnail --embed-metadata      # 元数据内嵌（本地播放器友好）
 ```
 
-偏好固化到 `~/.config/yt-dlp/config`（-f、-o、--download-archive、--embed-subs 等），之后裸跑自动套。
-
-## 只提取不下载
+## 进阶
 
 ```bash
-yt-dlp --print urls URL      # 只吐真实地址
-yt-dlp -j URL                # 完整元数据 JSON
-ffmpeg -i "$(yt-dlp --print urls URL)" -c copy out.mp4   # 当纯提取器
+--proxy socks5://127.0.0.1:1080  # 走代理（配合 ss 客户端）
+-F URL                          # 先列出可用格式再挑
+-P ~/media -o "%(playlist)s/%(title)s.%(ext)s"   # 按列表分目录
+--download-archive done.txt     # 只下新的（增量）
+# 用 cookies 下会员内容：--cookies-from-browser firefox
 ```
 
-## 其他
+## 排查
 
-```bash
-yt-dlp --proxy "socks5h://127.0.0.1:1080" URL   # h=域名走代理解析
-yt-dlp -a batch.txt            # 批量（配 --download-archive 只下新的，可挂 cron 追更）
-```
+- 下载被限速/403 → 加 `--proxy` 或 `-f` 换低码率格式
+- 站点反爬 → 更新 yt-dlp：`yt-dlp -U`（自带更新）
+- 合并失败 → 需 ffmpeg：装 ffmpeg（系统包/brew）

@@ -1,26 +1,37 @@
-# gocryptfs 常见用法
+# gocryptfs 常见用法（目录级加密：不需要设备的文件加密方案）
 
-FUSE 文件级加密（AES-256-GCM）：挂载即明文可用，卸载即密文。
+## 概念
 
-## 一次性初始化
+把"明文目录"封装成"密文目录"：挂载后读写透明加解密，看磁盘上是密文。
+适合：笔记/密钥/备份目录要落地加密，又不想用整盘 LUKS。
 
-```bash
-mkdir ~/cipher ~/plain        # cipher=密文(留盘)  plain=挂载点(空目录)
-gocryptfs -init ~/cipher      # 输两次密码，打印主密钥
-```
-
-**主密钥立刻抄到安全处**：忘密码或 gocryptfs.conf 损坏时它是唯一救援；
-但"主密钥+cipher"=免密解密，也要藏好。
-
-## 日常
+## 初始化与挂载
 
 ```bash
-gocryptfs ~/cipher ~/plain    # 挂载（输密码），在 ~/plain 里正常读写
-fusermount -u ~/plain         # 卸载（macOS 用 umount）
+mkdir -p ~/cipher ~/plain
+gocryptfs -init ~/cipher            # 首次：设置密码（生成 masterkey 备份指纹，务必抄下来）
+gocryptfs ~/cipher ~/plain          # 每次开机/用时挂载（输密码）
+ls ~/plain && echo ok               # 明文可读写
+fusermount -u ~/plain               # 卸载（Linux）
+umount ~/plain                      # macOS
 ```
 
-## 要点
+## 进阶
 
-- 别碰 cipher 目录里的任何文件（gocryptfs.conf 坏了整盘打不开，改一字节密文即拒解）
-- 备份 = 整目录拷 cipher；plain 只是影子不占盘
-- 重启后密文不丢，重新挂载即可
+```bash
+gocryptfs -init -plaintextnames ~/cipher   # 文件名不加密（只看内容加密，兼容性更好）
+gocryptfs -reverse ~/cipher ~/view        # 反向挂载：明文目录变密文快照（备份用）
+gocryptfs -passfile keyfile ~/cipher ~/plain   # 用口令文件免交互（脚本用，注意权限)
+gocryptfs -config ~/cipher/gocryptfs.conf   # 显式指定配置（多目录共用）
+```
+
+## 常规使用
+
+- 挂载点里正常用：`vim ~/plain/note.md`、`git` 等一切照常
+- 备份：先 `gocryptfs -reverse` 挂出密文视图再 rsync/rclone 备份
+
+## 排查
+
+- `fuse: device not found` → Linux 缺 fuse：`sudo apt install fuse3`
+- 密码写错会拒绝挂载（无提示但什么都看不到）→ 检查大小写
+- masterkey 指纹务必保存：丢了密码只能靠它找回，没有就废了
