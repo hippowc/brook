@@ -4,17 +4,29 @@
       "slug": "qwen3.8-max-preview",
       "display_name": "qwen3.8-max-preview",
       "description": "DashScope model: qwen3.8-max-preview",
-      "default_reasoning_level": "xhigh",
+      "default_reasoning_level": "medium",
       "supported_reasoning_levels": [
-        { "effort": "low", "description": "Fast responses with lighter reasoning" },
-        { "effort": "medium", "description": "Greater reasoning depth for complex problems" },
-        { "effort": "xhigh", "description": "Extra high reasoning depth for complex problems" }
+        {
+          "effort": "low",
+          "description": "Fast responses with lighter reasoning"
+        },
+        {
+          "effort": "medium",
+          "description": "Greater reasoning depth for complex problems"
+        },
+        {
+          "effort": "xhigh",
+          "description": "Extra high reasoning depth for complex problems"
+        }
       ],
       "context_window": 983616,
       "effective_context_window_percent": 95,
       "supports_parallel_tool_calls": false,
       "supports_image_detail_original": true,
-      "input_modalities": ["text", "image"],
+      "input_modalities": [
+        "text",
+        "image"
+      ],
       "shell_type": "default",
       "visibility": "list",
       "supported_in_api": true,
@@ -23,7 +35,127 @@
       "support_verbosity": false,
       "supports_reasoning_summaries": false,
       "experimental_supported_tools": [],
-      "truncation_policy": { "mode": "bytes", "limit": 10000 }
+      "truncation_policy": {
+        "mode": "bytes",
+        "limit": 10000
+      }
+    },
+    {
+      "slug": "deepseek-v4-pro-0813",
+      "display_name": "deepseek-v4-pro-0813",
+      "description": "DeepSeek V4 Pro（百炼托管，2026-08-13 快照；实测 responses+工具调用可用）",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses with lighter reasoning"
+        },
+        {
+          "effort": "medium",
+          "description": "Greater reasoning depth for complex problems"
+        },
+        {
+          "effort": "high",
+          "description": "Maximum reasoning depth for complex problems"
+        }
+      ],
+      "context_window": 131072,
+      "effective_context_window_percent": 95,
+      "supports_parallel_tool_calls": false,
+      "supports_image_detail_original": false,
+      "input_modalities": [
+        "text"
+      ],
+      "shell_type": "default",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 2,
+      "base_instructions": "",
+      "support_verbosity": false,
+      "supports_reasoning_summaries": false,
+      "experimental_supported_tools": [],
+      "truncation_policy": {
+        "mode": "bytes",
+        "limit": 10000
+      }
+    },
+    {
+      "slug": "deepseek-v4-flash-0731",
+      "display_name": "deepseek-v4-flash-0731",
+      "description": "DeepSeek V4 Flash（百炼托管，2026-07-31 快照；实测 responses+工具调用可用）",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses with lighter reasoning"
+        },
+        {
+          "effort": "medium",
+          "description": "Greater reasoning depth for complex problems"
+        },
+        {
+          "effort": "high",
+          "description": "Maximum reasoning depth for complex problems"
+        }
+      ],
+      "context_window": 131072,
+      "effective_context_window_percent": 95,
+      "supports_parallel_tool_calls": false,
+      "supports_image_detail_original": false,
+      "input_modalities": [
+        "text"
+      ],
+      "shell_type": "default",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 3,
+      "base_instructions": "",
+      "support_verbosity": false,
+      "supports_reasoning_summaries": false,
+      "experimental_supported_tools": [],
+      "truncation_policy": {
+        "mode": "bytes",
+        "limit": 10000
+      }
+    },
+    {
+      "slug": "glm-5.2",
+      "display_name": "glm-5.2",
+      "description": "智谱 GLM-5.2（百炼托管；实测 responses+工具调用可用）",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        {
+          "effort": "low",
+          "description": "Fast responses with lighter reasoning"
+        },
+        {
+          "effort": "medium",
+          "description": "Greater reasoning depth for complex problems"
+        },
+        {
+          "effort": "high",
+          "description": "Maximum reasoning depth for complex problems"
+        }
+      ],
+      "context_window": 131072,
+      "effective_context_window_percent": 95,
+      "supports_parallel_tool_calls": false,
+      "supports_image_detail_original": false,
+      "input_modalities": [
+        "text"
+      ],
+      "shell_type": "default",
+      "visibility": "list",
+      "supported_in_api": true,
+      "priority": 4,
+      "base_instructions": "",
+      "support_verbosity": false,
+      "supports_reasoning_summaries": false,
+      "experimental_supported_tools": [],
+      "truncation_policy": {
+        "mode": "bytes",
+        "limit": 10000
+      }
     }
   ]
 }
