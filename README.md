@@ -35,6 +35,19 @@ brook proxies                               # 代理预设
 - **GitHub release 二进制工具**：完整流水线（install / upgrade / status / remove），见 `tools/`
 - **超级官方应用**：官网一行命令安装（brew、rustup），brook 只管装，见 `official/`
 
+## 系统实践（机器级配置）
+
+引导一台机器不只是装工具——系统自带的包管理器往往源没配好。`brook setup` 负责机器级配置：
+
+```bash
+brook setup                             # 列出系统实践及本机适用性
+brook setup apt-mirror --dry-run        # 预览：apt 源会改成什么（不动手）
+brook setup apt-mirror                  # 执行（自动 sudo，改前备份，改后 apt update 验证）
+brook setup yum-mirror --mirror tsinghua
+```
+
+已提供：`apt-mirror`（Ubuntu/Debian，含 24.04+ deb822 格式）、`yum-mirror`（CentOS/Rocky/Alma/Fedora）。已是国内源则不动。
+
 ## 新增一个工具
 
 加一个目录 `tools/<名字>/`，一个目录 = 这个工具的一切：
