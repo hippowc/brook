@@ -96,7 +96,16 @@ extract_archive() {
   case "$atype" in
     tar.gz) tar -xzf "$tmp/archive" -C "$tmp" ;;
     tar.xz) tar -xJf "$tmp/archive" -C "$tmp" ;;
-    zip) have unzip || die "解压 zip 需要 unzip，请先安装"; unzip -q "$tmp/archive" -d "$tmp" ;;
+    zip)
+      # 依赖降级：优先 unzip，其次 python3（mac 装了 CLT 即有，Ubuntu/Debian 默认带）
+      if have unzip; then
+        unzip -q "$tmp/archive" -d "$tmp"
+      elif have python3; then
+        python3 -m zipfile -e "$tmp/archive" "$tmp/"
+      else
+        die "解压 zip 需要 unzip 或 python3：Linux 用 apt install unzip，macOS 用 brew install unzip"
+      fi
+      ;;
     zst)
       # 实测（2026-08-20）：codex 的 .zst 资产是 zstd 压缩的裸二进制，不是 tar
       have zstd || die "解压 .zst 需要 zstd 工具"
