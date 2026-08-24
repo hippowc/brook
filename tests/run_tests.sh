@@ -10,7 +10,7 @@ if command -v bats >/dev/null 2>&1; then
 else
   CACHE="${BATS_CACHE:-$ROOT/.cache/bats-core}"
   if [ ! -x "$CACHE/bin/bats" ]; then
-    echo "（本地未装 bats，clone bats-core 到 $CACHE）"
+    echo "（本地未装 bats，clone bats-core 到 ${CACHE}）"
     mkdir -p "$(dirname "$CACHE")"
     git clone --depth 1 https://github.com/bats-core/bats-core.git "$CACHE"
   fi
