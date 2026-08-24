@@ -196,6 +196,10 @@ def check_bash32_compat() -> None:
     files += sorted((ROOT / "tools").glob("*/shell-init.sh"))
     files += sorted((ROOT / "tests").rglob("*.sh"))
     files += sorted((ROOT / "tests").rglob("*.bats"))
+    # 无后缀 bash 脚本（如 fixtures/bin/curl、fixtures/bin/uname）也不能漏
+    for f in (ROOT / "tests" / "fixtures" / "bin").glob("*"):
+        if f.is_file():
+            files.append(f)
     for f in files:
         if not f.exists():
             continue
