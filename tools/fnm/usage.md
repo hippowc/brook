@@ -24,4 +24,4 @@ fnm use 20               # 切换
 
 - 进入含 .node-version / .nvmrc 的目录自动切版本（--use-on-cd 已启用）
 - linux 仅支持 x86_64（上游不发 arm64 包）
-- npm 国内镜像：brook config fnm npm-mirror
+- npm 国内镜像：brook mirror npm apply

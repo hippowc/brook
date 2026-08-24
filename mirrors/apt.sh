@@ -1,49 +1,62 @@
-# apt-mirror —— apt 源切换国内镜像（Ubuntu/Debian）
+# apt —— apt 源（Ubuntu/Debian）
 # 支持传统格式（/etc/apt/sources.list）与 deb822（Ubuntu 24.04+ 的 *.sources）；
-# 改前备份（*.brook-bak，只备份一次）；已是国内源则不动；切换后 apt update 验证。
+# 改前备份（*.brook-bak，只备份首次）；已是国内源则不动；切换后 apt update 验证。
 
-setup_desc() { echo "apt 源切换国内镜像（Ubuntu/Debian）"; }
+MIRROR_PROVIDERS="aliyun(默认) / tsinghua / ustc"
+NEED_ROOT=1
 
-_current_source_host() {
-  # 注意：*.sources 可能不存在（24.04 之前），grep 失败不能让 pipefail 杀掉调用者
+mirror_desc() { echo "apt 源（Ubuntu/Debian，含 24.04+ deb822 格式）"; }
+
+_apt_current_host() {
+  # *.sources 在 24.04 之前不存在，通配无匹配不能让 pipefail 杀掉调用者
   local line
   line="$(grep -hE '^(deb |URIs:)' /etc/apt/sources.list /etc/apt/sources.list.d/*.sources 2>/dev/null | head -1 || true)"
   printf '%s' "$line" | sed -E 's#.*https?://([^/ ]+).*#\1#'
 }
 
-_is_cn_mirror() {
+_apt_is_cn() {
   case "$1" in
     *aliyun*|*tsinghua*|*ustc*|*huawei*|*tencent*|*163.com) return 0 ;;
     *) return 1 ;;
   esac
 }
 
-setup_detect() {
+mirror_detect() {
   if [ ! -f /etc/os-release ] || ! grep -qE '^ID=(ubuntu|debian)$' /etc/os-release; then
     echo "inapplicable（非 Ubuntu/Debian）"
     return 0
   fi
   local host
-  host="$(_current_source_host)"
-  if _is_cn_mirror "$host"; then
+  host="$(_apt_current_host)"
+  if _apt_is_cn "$host"; then
     echo "已是国内源（$host）"
   else
-    echo "当前：$host（建议切换）"
+    echo "当前：${host:-官方源}（建议切换）"
   fi
 }
 
-setup_run() {
-  local mirror="${SETUP_MIRROR:-aliyun}" base
-  case "$mirror" in
+mirror_status() {
+  local host
+  host="$(_apt_current_host)"
+  if _apt_is_cn "$host"; then
+    echo "✓ 国内源（$host）"
+  else
+    echo "✗ 当前：${host:-官方源}（建议切换）"
+  fi
+}
+
+mirror_apply() {
+  local choice="${MIRROR_CHOICE:-aliyun}" base
+  case "$choice" in
     aliyun)   base="https://mirrors.aliyun.com" ;;
     tsinghua) base="https://mirrors.tuna.tsinghua.edu.cn" ;;
     ustc)     base="https://mirrors.ustc.edu.cn" ;;
-    *) die "未知镜像：$mirror（可选：aliyun / tsinghua / ustc）" ;;
+    *) die "未知源：$choice（可选：aliyun / tsinghua / ustc）" ;;
   esac
 
   local host
-  host="$(_current_source_host)"
-  if _is_cn_mirror "$host"; then
+  host="$(_apt_current_host)"
+  if _apt_is_cn "$host"; then
     log "已使用国内源（$host），不做改动"
     return 0
   fi

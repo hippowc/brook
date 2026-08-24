@@ -35,18 +35,21 @@ brook proxies                               # 代理预设
 - **GitHub release 二进制工具**：完整流水线（install / upgrade / status / remove），见 `tools/`
 - **超级官方应用**：官网一行命令安装（brew、rustup），brook 只管装，见 `official/`
 
-## 系统实践（机器级配置）
+## 包源管理（国内镜像）
 
-引导一台机器不只是装工具——系统自带的包管理器往往源没配好。`brook setup` 负责机器级配置：
+引导一台机器不只是装工具——系统自带的包管理器往往源没配好，语言生态的包源同理。`brook mirror` 统一管理：
 
 ```bash
-brook setup                             # 列出系统实践及本机适用性
-brook setup apt-mirror --dry-run        # 预览：apt 源会改成什么（不动手）
-brook setup apt-mirror                  # 执行（自动 sudo，改前备份，改后 apt update 验证）
-brook setup yum-mirror --mirror tsinghua
+brook mirror                              # 总览：适用性 / 当前状态 / 可用源
+brook mirror apt apply --dry-run          # 预览：会改什么（不动手）
+brook mirror apt apply                    # 应用（自动 sudo，改前备份，改后验证）
+brook mirror apt apply --mirror tsinghua  # 选源
+brook mirror goproxy apply                # Go 模块代理（goproxy.cn）
+brook mirror pypi apply                   # PyPI（uv 的 UV_DEFAULT_INDEX）
+brook mirror npm apply                    # npm registry（npmmirror）
 ```
 
-已提供：`apt-mirror`（Ubuntu/Debian，含 24.04+ deb822 格式）、`yum-mirror`（CentOS/Rocky/Alma/Fedora）。已是国内源则不动。
+系统源（apt：Ubuntu/Debian 含 deb822；yum：CentOS/Rocky/Alma/Fedora）改前必备份、改后必验证、已是国内源则不动。注意区分：`brook proxies` 管 brook 自身下载加速，`sson/ssoff` 流量代理属于 shadowsocks-rust 工具。
 
 ## 新增一个工具
 

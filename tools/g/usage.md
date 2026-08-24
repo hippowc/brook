@@ -25,4 +25,4 @@ g update               # g 自更新
 
 - 工具链装在 ~/.g，GOROOT/GOPATH 由 ~/.g/env 管理
 - 下载走 golang.google.cn 官方镜像（~/.g/env 里的 G_MIRROR），国内无需代理
-- 模块代理另配：brook config g goproxy
+- 模块代理另配：brook mirror goproxy apply

@@ -29,4 +29,4 @@ uvx ruff check .             # 临时运行，不安装
 ## 说明
 
 - 无需 shell 初始化，装完即用
-- 国内镜像：brook config uv pypi-mirror
+- 国内镜像：brook mirror pypi apply

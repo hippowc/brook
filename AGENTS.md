@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-brook = 环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。不替代包管理器：apt/brew/npm 更合适的场景用系统包管理器；brook 把 GitHub 官方二进制与超级官方应用一行命令统一装到用户级（`~/.local/bin`），覆盖常用 CLI 工具与语言工具链（rustup / g / uv / fnm）；并提供系统实践（`brook setup`）完成机器级配置（如 apt/yum 换国内源）。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
+brook = 环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。不替代包管理器：apt/brew/npm 更合适的场景用系统包管理器；brook 把 GitHub 官方二进制与超级官方应用一行命令统一装到用户级（`~/.local/bin`），覆盖常用 CLI 工具与语言工具链（rustup / g / uv / fnm）；并提供包源管理（`brook mirror`）：系统源（apt/yum）与语言生态源（goproxy/pypi/npm）的国内镜像配置。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
 
 **收录判断**：先问"目标平台上它有没有好的系统级安装方式"——有则不收（如 mpv/ffmpeg 走 brew/apt）；brook 只补"裸机无网页可查也能闭环"的位。
 
@@ -30,10 +30,10 @@ lib/core.sh         # 基础：help / list / 分发 / ask / log / os / arch / rc
 lib/proxy.sh        # 代理：预设查找与 URL 改写（prefix / replace 两种模式）
 lib/registry.sh     # tools/ 轨引擎：版本解析、候选链、下载、解压、安装、元数据
 lib/official.sh     # official/ 轨：取官方脚本并执行（只管装）
-lib/setup.sh        # 系统实践运行器（适用性检测、sudo 重入、--dry-run）
+lib/mirror.sh       # 包源管理运行器（总览、适用性检测、sudo 重入、--dry-run）
 proxies.conf        # 代理预设（含实测日期与速度注释）
 official/<应用>.conf # 超级官方应用（官网一行命令）；同名 .usage.md 为用法文档
-system/<实践>.sh     # 系统实践（机器级配置：apt/yum 换源等）
+mirrors/<镜像>.sh    # 包源/镜像（系统源 + 语言生态源，brook mirror 管理）
 tools/<工具>/        # 一个目录 = 一个工具的一切
 ├── tool.conf       # release 映射（必须）
 ├── config/         # 配置实践（可选）：一个文件一个具名实践
@@ -69,14 +69,16 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 
 `official/<名字>.conf`：`DESC`（明示需要 sudo/自管理等差异）、`CATEGORY`（language/installer）、`SCRIPT_URL`（官网首屏那一行的脚本地址）、`BINARIES`（状态检测用）。可选 `<名字>.usage.md`。准入标准见文首收录标准。
 
-### 新增系统实践
+### 新增镜像
 
-`system/<名字>.sh`，定义 `setup_desc`（说明）/ `setup_detect`（本机适用性与现状，输出以 inapplicable 开头表示不适用）/ `setup_run`（执行）。约定：
+`mirrors/<名字>.sh`，定义 `MIRROR_PROVIDERS`（可用源说明）、`NEED_ROOT`（1=需 root）、`mirror_desc` / `mirror_detect`（输出以 inapplicable 开头 = 不适用）/ `mirror_status` / `mirror_apply`（尊重 `$DRY_RUN` 与 `$MIRROR_CHOICE`）。约定：
 
-- 运行器自动处理：非 root 时经 sudo 重入；`--dry-run` 免 root 只预览
+- 运行器自动处理：需 root 时经 sudo 重入；`--dry-run` 免 root 只预览
 - 改系统文件前必备份（备份名带 .brook 标识，且只备份首次）
 - 改后必须验证（如 apt update / makecache），失败给出回退指引
-- 未全量真机验证的实践要在文件头注明
+- 已是国内源则不动；未全量真机验证的要在文件头注明
+
+注意三种"代理"的边界：`brook mirror` 管包源；`brook proxies` 管 brook 自身下载加速；流量代理（如 sson/ssoff）属于对应工具的配置实践，不进 mirrors/。
 
 ### 更新代理预设
 

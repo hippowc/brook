@@ -94,11 +94,12 @@ install 选项：
   brook install brew                 安装 Homebrew
   brook install rustup               安装 Rust 工具链
 
-系统实践（机器级配置，自动 sudo 提权，改前必备份）：
-  brook setup                        列出系统实践及本机适用性
-  brook setup apt-mirror             apt 源切换国内镜像（Ubuntu/Debian）
-  brook setup yum-mirror             yum/dnf 源切换国内镜像
-  选项：--mirror aliyun|tsinghua|ustc（默认 aliyun）  --dry-run（只看会改什么）
+包源管理（国内镜像；系统源需 root，自动 sudo 提权，改前必备份）：
+  brook mirror                       总览：各源适用性/当前状态/可用源
+  brook mirror apt                   查看某个源的详情
+  brook mirror apt apply             应用（默认源）
+  brook mirror apt apply --dry-run   预览会改什么
+  brook mirror apt apply --mirror tsinghua   选源
 
 支持的格式：tar.gz / tar.xz / zip / zst / 裸二进制；
 上游改资产命名时自动降级：预置候选 → 枚举真实资产列表（详见 README）。
@@ -181,7 +182,7 @@ list_tools() {
   _list_category installer "【安装包工具】包管理器" "装它，是为了用它装 brook 覆盖不到的东西"
   echo "标 ✓ 配置的工具装完后记得运行：brook config <工具>"
   echo "不会用某个工具？brook usage <工具> 查看常见用法速查"
-  echo "机器级配置（如 apt/yum 换国内源）：brook setup"
+  echo "包源国内镜像（apt/yum/goproxy/pypi/npm）：brook mirror"
 }
 
 self_upgrade() {
@@ -223,12 +224,12 @@ brook_main() {
       [ $# -ge 1 ] || die "用法：brook $cmd <工具>（brook help 查看帮助）"
       _dispatch_tool "$cmd" "$@"
       ;;
-    setup)
+    mirror)
       shift
       if [ $# -ge 1 ]; then
-        run_setup "$@"
+        mirror_run "$@"
       else
-        setup_list
+        mirror_list
       fi
       ;;
     *)
