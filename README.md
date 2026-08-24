@@ -2,7 +2,7 @@
 
 环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。
 
-不是包管理器替代品——apt / brew / npm 擅长的场景请用它们；brook 是引导层：把常用 CLI 工具与语言工具链（rustup / g / uv / fnm）统一装到 `~/.local/bin` 并加入 PATH。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理。
+不是包管理器替代品——apt / brew / npm 擅长的场景请用它们；brook 是引导层：把常用 CLI 工具与语言工具链（rustup / sdkman / g / uv / fnm）统一装到 `~/.local/bin` 并加入 PATH。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理。
 
 维护与扩展本项目请先读 [AGENTS.md](AGENTS.md)。
 
@@ -33,7 +33,7 @@ brook proxies                               # 代理预设
 以 `brook list` 输出为准（含安装状态与配置支持标记）。分两类：
 
 - **GitHub release 二进制工具**：完整流水线（install / upgrade / status / remove），见 `tools/`
-- **超级官方应用**：官网一行命令安装（brew、rustup），brook 只管装，见 `official/`
+- **超级官方应用**：官网一行命令安装（brew、rustup、sdkman），brook 只管装，见 `official/`
 
 ## 包源管理（国内镜像）
 

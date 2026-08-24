@@ -1,12 +1,35 @@
 # official.sh —— 超级官方应用：委托官网首屏一行命令安装
 # 与 tools/ 二进制流水线完全独立：brook 只管"装"，装后由工具自身管理
 
+# 安装检测：BINARIES 查 PATH 上的二进制；CHECK_FILES 查文件标志
+# （命令是 shell 函数而非二进制的场景——如 sdkman 的 sdk——用文件标志）
 _official_installed() {
-  local b
+  local b f
   for b in ${BINARIES:-}; do
     if command -v "$b" >/dev/null 2>&1; then return 0; fi
   done
+  for f in ${CHECK_FILES:-}; do
+    if [ -e "$f" ]; then return 0; fi
+  done
   return 1
+}
+
+# 安装前置检查：PREREQS 列出必需命令，缺失时按平台给出安装参考并中止
+_check_prereqs() {
+  local name="$1" p missing=""
+  for p in ${PREREQS:-}; do
+    command -v "$p" >/dev/null 2>&1 || missing="$missing $p"
+  done
+  [ -z "$missing" ] && return 0
+  warn "$name 需要以下命令，本机缺失:$missing"
+  case "$(os)" in
+    linux)
+      if have apt-get; then log "安装参考: sudo apt-get install -y$missing"; fi
+      if have yum;     then log "安装参考: sudo yum install -y$missing"; fi
+      ;;
+    macos) log "安装参考: brew install$missing" ;;
+  esac
+  die "请先补齐缺失命令，再重新 brook install $name"
 }
 
 official_list() {
@@ -41,6 +64,7 @@ official_install() {
     log "$name 已安装，无需重复（如需重装请用官方方式）"
     return 0
   fi
+  _check_prereqs "$name"
   tmp="$(mktemp)"
   log "获取官方安装脚本：$SCRIPT_URL"
   curl -fsSL "$SCRIPT_URL" -o "$tmp" || { rm -f "$tmp"; die "获取安装脚本失败（网络问题可设 https_proxy 环境变量）"; }
@@ -54,7 +78,7 @@ official_install() {
 }
 
 official_status() {
-  local name="$1" b any=0
+  local name="$1" b f any=0
   echo "应用:    $name —— ${DESC:-}"
   echo "类别:    超级官方应用（官方脚本安装，brook 只管装）"
   echo "脚本:    ${SCRIPT_URL:-}"
@@ -64,6 +88,14 @@ official_status() {
       any=1
     else
       echo "二进制:  ✗ $b 不在 PATH（brook install $name）"
+    fi
+  done
+  for f in ${CHECK_FILES:-}; do
+    if [ -e "$f" ]; then
+      echo "标志:    ✓ $f"
+      any=1
+    else
+      echo "标志:    ✗ $f 不存在（brook install $name）"
     fi
   done
   if [ "$any" = 1 ]; then

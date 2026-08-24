@@ -94,6 +94,7 @@ install 选项：
 超级官方应用（官网一行命令安装，brook 只管装）：
   brook install brew                 安装 Homebrew
   brook install rustup               安装 Rust 工具链
+  brook install sdkman               安装 Java 工具链（SDKMAN）
 
 包源管理（国内镜像；系统源需 root，自动 sudo 提权，改前必备份）：
   brook mirror                       总览：各源适用性/当前状态/可用源

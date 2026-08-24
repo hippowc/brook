@@ -2,7 +2,7 @@
 
 ## 项目定位
 
-brook = 环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。不替代包管理器：apt/brew/npm 更合适的场景用系统包管理器；brook 把 GitHub 官方二进制与超级官方应用一行命令统一装到用户级（`~/.local/bin`），覆盖常用 CLI 工具与语言工具链（rustup / g / uv / fnm）；并提供包源管理（`brook mirror`）：系统源（apt/yum）与语言生态源（goproxy/pypi/npm）的国内镜像配置。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
+brook = 环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。不替代包管理器：apt/brew/npm 更合适的场景用系统包管理器；brook 把 GitHub 官方二进制与超级官方应用一行命令统一装到用户级（`~/.local/bin`），覆盖常用 CLI 工具与语言工具链（rustup / sdkman / g / uv / fnm）；并提供包源管理（`brook mirror`）：系统源（apt/yum）与语言生态源（goproxy/pypi/npm）的国内镜像配置。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
 
 **收录判断**：先问"目标平台上它有没有好的系统级安装方式"——有则不收（如 mpv/ffmpeg 走 brew/apt）；brook 只补"裸机无网页可查也能闭环"的位。
 
@@ -16,7 +16,7 @@ brook = 环境引导器（starter）：全新机器上，当没有更好的安�
 **机制分轨，功能分类，两个维度正交**：轨（目录）决定安装机制；类（conf 的 `CATEGORY` 字段）决定功能定位，只影响 `brook list` 的分组展示：
 
 - `binary`：二进制工具（常用 CLI，默认值）
-- `language`：语言工具（工具链管理器：rustup / g / uv / fnm）
+- `language`：语言工具（工具链管理器：rustup / sdkman / g / uv / fnm）
 - `installer`：安装包工具（包管理器：brew）
 
 新增条目时必须想清楚它属于哪一轨、哪一类。
@@ -29,7 +29,7 @@ install.sh          # 一行安装器：克隆 ~/.brook + 软链命令 + PATH
 lib/core.sh         # 基础：help / list / 分发 / ask / log / os / arch / rc
 lib/proxy.sh        # 代理：预设查找与 URL 改写（prefix / replace 两种模式）
 lib/registry.sh     # tools/ 轨引擎：版本解析、候选链、下载、解压、安装、元数据
-lib/official.sh     # official/ 轨：取官方脚本并执行（只管装）
+lib/official.sh     # official/ 轨：取官方脚本并执行（只管装；预检前置依赖、检测安装状态）
 lib/mirror.sh       # 包源管理运行器（总览、适用性检测、sudo 重入、--dry-run）
 proxies.conf        # 代理预设（含实测日期与速度注释）
 official/<应用>.conf # 超级官方应用（官网一行命令）；同名 .usage.md 为用法文档
@@ -67,7 +67,7 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 
 ### 新增超级官方应用
 
-`official/<名字>.conf`：`DESC`（明示需要 sudo/自管理等差异）、`CATEGORY`（language/installer）、`SCRIPT_URL`（官网首屏那一行的脚本地址）、`BINARIES`（状态检测用）。可选 `<名字>.usage.md`。准入标准见文首收录标准。
+`official/<名字>.conf`：`DESC`（明示需要 sudo/自管理等差异）、`CATEGORY`（language/installer）、`SCRIPT_URL`（官网首屏那一行的脚本地址）、`BINARIES`（状态检测：PATH 上的二进制）。可选：`CHECK_FILES`（文件标志检测，用于命令是 shell 函数而非二进制的场景，如 sdkman；conf 被 source 时展开 `$HOME`）、`PREREQS`（安装前置命令，缺失时按平台给安装参考并中止）、`<名字>.usage.md`。准入标准见文首收录标准。
 
 ### 新增镜像
 
