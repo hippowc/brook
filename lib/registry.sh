@@ -212,7 +212,7 @@ do_install() {
     asset="$(render_asset_pattern "$pat" "$tag_use" "$target")"
     url="$(proxy_apply "https://github.com/$REPO/releases/download/$tag/$asset")"
     log "下载 $url"
-    code="$(curl -fL --retry 1 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
+    code="$(curl -fL --retry 3 --connect-timeout 15 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
     if [ "$code" = "200" ] && [ -s "$tmp/archive" ]; then
       chosen="$asset"
       if [ "$pat" != "$ASSET" ]; then
@@ -233,7 +233,7 @@ do_install() {
     _fallback_from_release_list "$tag" "$target" || { rm -rf "$tmp"; return 1; }
     url="$(proxy_apply "https://github.com/$REPO/releases/download/$tag/$chosen")"
     log "下载 $url"
-    code="$(curl -fL --retry 1 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
+    code="$(curl -fL --retry 3 --connect-timeout 15 --progress-bar -o "$tmp/archive" -w '%{http_code}' "$url" 2>/dev/null || true)"
     if [ "$code" != "200" ] || [ ! -s "$tmp/archive" ]; then
       rm -rf "$tmp"
       die "下载失败（HTTP ${code}）"
