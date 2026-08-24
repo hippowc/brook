@@ -127,7 +127,7 @@ _entry_row() {
     echo "${DESC:-}"
   )"
   if [ -d "$BROOK_HOME/tools/$tool/config" ] && ls "$BROOK_HOME/tools/$tool/config/"*.sh >/dev/null 2>&1; then
-    cfg="✓"
+    cfg="有"
   else
     cfg="-"
   fi
@@ -183,7 +183,7 @@ list_tools() {
   _list_category binary "【二进制工具】常用 CLI" ""
   _list_category language "【语言工具】工具链管理器" "先装管理器，再用它装具体版本（如 g install 1.24 / uv python install 3.12）"
   _list_category installer "【安装包工具】包管理器" "装它，是为了用它装 brook 覆盖不到的东西"
-  echo "标 ✓ 配置的工具装完后记得运行：brook config <工具>"
+  echo "标 "有" 配置的工具装完后记得运行：brook config <工具>"
   echo "不会用某个工具？brook usage <工具> 查看常见用法速查"
   echo "包源国内镜像（apt/yum/goproxy/pypi/npm/flatpak）：brook mirror"
 }
