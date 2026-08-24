@@ -73,7 +73,7 @@ proxies_test() {
   tag="$(printf '%s' "$loc" | sed -n 's#.*/releases/tag/\(.*\)$#\1#p')"
   [ -n "$tag" ] || die "无法解析测试资产（网络问题）"
   base="https://github.com/$repo/releases/download/$tag/bwrap-x86_64-unknown-linux-musl.zst"
-  log "测试资产：bwrap（~0.2MB，tag=$tag）；结果受当时网络波动影响"
+  log "测试资产：bwrap（~0.2MB，tag=${tag}）；结果受当时网络波动影响"
   local results name mode rest url from to
   results="direct|$(_measure_speed "$base")"
   while IFS='|' read -r name mode rest; do

@@ -32,7 +32,7 @@ target_of() {
     if [ -n "$note" ]; then
       die "上游未提供 $(os)-$(arch) 的发行包：$note"
     fi
-    die "上游未提供 $(os)-$(arch) 的发行包（该工具可能不支持此平台；如确属映射遗漏，补 tools/$tool/tool.conf 的 $var）"
+    die "上游未提供 $(os)-$(arch) 的发行包（该工具可能不支持此平台；如确属映射遗漏，补 tools/$tool/tool.conf 的 ${var}）"
   fi
   echo "$t"
 }
@@ -274,7 +274,7 @@ do_status() {
   if [ -n "$tag" ]; then
     echo "安装:    ✓ ${tag}（$(sed -n 's/^date=//p' "$BROOK_META_DIR/$tool")）"
   else
-    echo "安装:    ✗ 未安装（brook install $tool）"
+    echo "安装:    ✗ 未安装（brook install ${tool}）"
   fi
   for b in ${BINARIES:-}; do
     if [ -x "$BROOK_BIN_DIR/$b" ]; then
@@ -285,7 +285,7 @@ do_status() {
   done
   _show_config_status "$tool"
   if [ -f "$BROOK_HOME/tools/$tool/usage.md" ]; then
-    echo "用法:    brook usage $tool（常见用法速查）"
+    echo "用法:    brook usage ${tool}（常见用法速查）"
   fi
 }
 

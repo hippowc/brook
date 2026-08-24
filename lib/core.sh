@@ -198,7 +198,7 @@ self_upgrade() {
   if git -C "$BROOK_HOME" pull --ff-only; then
     after="$(git -C "$BROOK_HOME" rev-parse --short HEAD 2>/dev/null)"
     if [ "$before" = "$after" ]; then
-      log "已是最新版（$after）"
+      log "已是最新版（${after}）"
     else
       log "已更新：$before → $after"
       log "查看变化：git -C $BROOK_HOME log --oneline ${before}..HEAD"

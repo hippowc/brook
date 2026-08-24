@@ -158,8 +158,58 @@ def check_basics() -> None:
         err("brook 入口不可执行（缺 +x）")
 
 
+
+_BASH32_PAT = re.compile(r'\$([A-Za-z_][A-Za-z0-9_]*)([^\x00-\x7f])')
+
+
+def _inside_single_quote(line: str, pos: int) -> bool:
+    in_dq = in_sq = esc = False
+    for i, c in enumerate(line):
+        if i == pos:
+            return in_sq
+        if in_sq:
+            if c == "'":
+                in_sq = False
+        elif in_dq:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_dq = False
+        else:
+            if c == "'":
+                in_sq = True
+            elif c == '"':
+                in_dq = True
+    return False
+
+
+def check_bash32_compat() -> None:
+    """bash 3.2（macOS）：`$VAR` 后紧跟非 ASCII 字符会把多字节首字节并进变量名
+    → 必须写成 `${VAR}`。防止这类兼容 bug 回归。"""
+    files = [ROOT / "brook"]
+    files += sorted((ROOT / "lib").glob("*.sh"))
+    files += sorted((ROOT / "mirrors").glob("*.sh"))
+    files += sorted((ROOT / "official").glob("*.sh"))
+    files += sorted((ROOT / "tools").glob("*/config/*.sh"))
+    files += sorted((ROOT / "tools").glob("*/shell-init.sh"))
+    files += sorted((ROOT / "tests").rglob("*.sh"))
+    files += sorted((ROOT / "tests").rglob("*.bats"))
+    for f in files:
+        if not f.exists():
+            continue
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            for m in _BASH32_PAT.finditer(line):
+                if not _inside_single_quote(line, m.start()):
+                    err(f"{f}:{i}: `$` 后变量名紧跟非 ASCII 字符（{m.group(2)}），"
+                        f"bash 3.2 会解析异常，请用 ${{{m.group(1)}}}")
+
 def main() -> int:
     check_basics()
+    check_bash32_compat()
     check_tools()
     check_codex_catalog()
     check_official()

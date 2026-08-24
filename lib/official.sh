@@ -59,7 +59,7 @@ official_list() {
 
 official_install() {
   local name="$1" tmp
-  [ -n "${SCRIPT_URL:-}" ] || die "$name：conf 缺少 SCRIPT_URL"
+  [ -n "${SCRIPT_URL:-}" ] || die "${name}：conf 缺少 SCRIPT_URL"
   if _official_installed; then
     log "$name 已安装，无需重复（如需重装请用官方方式）"
     return 0
@@ -87,7 +87,7 @@ official_status() {
       echo "二进制:  ✓ $(command -v "$b")"
       any=1
     else
-      echo "二进制:  ✗ $b 不在 PATH（brook install $name）"
+      echo "二进制:  ✗ $b 不在 PATH（brook install ${name}）"
     fi
   done
   for f in ${CHECK_FILES:-}; do
@@ -95,7 +95,7 @@ official_status() {
       echo "标志:    ✓ $f"
       any=1
     else
-      echo "标志:    ✗ $f 不存在（brook install $name）"
+      echo "标志:    ✗ $f 不存在（brook install ${name}）"
     fi
   done
   if [ "$any" = 1 ]; then

@@ -29,7 +29,7 @@ mirror_apply() {
   case "$choice" in
     aliyun)   base="https://mirrors.aliyun.com" ;;
     tsinghua) base="https://mirrors.tuna.tsinghua.edu.cn" ;;
-    *) die "未知源：$choice（可选：aliyun / tsinghua）" ;;
+    *) die "未知源：${choice}（可选：aliyun / tsinghua）" ;;
   esac
 
   local bakdir="/etc/yum.repos.d.brook-bak"
@@ -45,7 +45,7 @@ mirror_apply() {
     cp -a /etc/yum.repos.d/. "$bakdir/"
     log "已备份 /etc/yum.repos.d/ → $bakdir/"
   else
-    log "备份已存在：$bakdir（保留首次备份）"
+    log "备份已存在：${bakdir}（保留首次备份）"
   fi
 
   local f

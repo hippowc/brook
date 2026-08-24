@@ -29,11 +29,11 @@ mirror_apply() {
     tsinghua) url="https://pypi.tuna.tsinghua.edu.cn/simple" ;;
     aliyun)   url="https://mirrors.aliyun.com/pypi/simple" ;;
     ustc)     url="https://mirrors.ustc.edu.cn/pypi/simple" ;;
-    *) die "未知源：$choice（可选：tsinghua / aliyun / ustc）" ;;
+    *) die "未知源：${choice}（可选：tsinghua / aliyun / ustc）" ;;
   esac
   rc="$(rc_file)"
   if [ "$DRY_RUN" = 1 ]; then
-    log "[dry-run] 将写入 $rc：export UV_DEFAULT_INDEX=\"$url\"（已有旧行则替换）"
+    log "[dry-run] 将写入 ${rc}：export UV_DEFAULT_INDEX=\"$url\"（已有旧行则替换）"
     return 0
   fi
   if grep -q 'UV_DEFAULT_INDEX' "$rc" 2>/dev/null; then
@@ -41,5 +41,5 @@ mirror_apply() {
     grep -v 'UV_DEFAULT_INDEX' "$rc" > "$rc.brook-tmp" && mv "$rc.brook-tmp" "$rc"
   fi
   append_rc "export UV_DEFAULT_INDEX=\"$url\""
-  log "已写入 $rc（source 后生效）"
+  log "已写入 ${rc}（source 后生效）"
 }

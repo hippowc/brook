@@ -29,7 +29,7 @@ mirror_detect() {
   local host
   host="$(_apt_current_host)"
   if _apt_is_cn "$host"; then
-    echo "已是国内源（$host）"
+    echo "已是国内源（${host}）"
   else
     echo "当前：${host:-官方源}（建议切换）"
   fi
@@ -39,7 +39,7 @@ mirror_status() {
   local host
   host="$(_apt_current_host)"
   if _apt_is_cn "$host"; then
-    echo "✓ 国内源（$host）"
+    echo "✓ 国内源（${host}）"
   else
     echo "✗ 当前：${host:-官方源}（建议切换）"
   fi
@@ -51,13 +51,13 @@ mirror_apply() {
     aliyun)   base="https://mirrors.aliyun.com" ;;
     tsinghua) base="https://mirrors.tuna.tsinghua.edu.cn" ;;
     ustc)     base="https://mirrors.ustc.edu.cn" ;;
-    *) die "未知源：$choice（可选：aliyun / tsinghua / ustc）" ;;
+    *) die "未知源：${choice}（可选：aliyun / tsinghua / ustc）" ;;
   esac
 
   local host
   host="$(_apt_current_host)"
   if _apt_is_cn "$host"; then
-    log "已使用国内源（$host），不做改动"
+    log "已使用国内源（${host}），不做改动"
     return 0
   fi
 
@@ -104,7 +104,7 @@ deb $base/debian-security/ $codename-security main contrib non-free non-free-fir
   fi
   [ -f "$target.brook-bak" ] || cp "$target" "$target.brook-bak"
   printf '%s\n' "$content" > "$target"
-  log "已写入 $target（备份：$target.brook-bak）"
+  log "已写入 ${target}（备份：$target.brook-bak）"
 }
 
 _apt_write_deb822() {
@@ -121,5 +121,5 @@ Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"
   fi
   [ -f "$target.brook-bak" ] || cp "$target" "$target.brook-bak"
   printf '%s\n' "$content" > "$target"
-  log "已写入 $target（备份：$target.brook-bak）"
+  log "已写入 ${target}（备份：$target.brook-bak）"
 }

@@ -8,7 +8,7 @@ config_run() {
   line='eval "$(fnm env --use-on-cd)"  # fnm shell setup'
   if ! grep -qF 'fnm env' "$rc" 2>/dev/null; then
     echo "$line" >> "$rc"
-    log "已写入 $rc（source 后生效）"
+    log "已写入 ${rc}（source 后生效）"
   else
     log "$rc 已有 fnm env，跳过"
   fi

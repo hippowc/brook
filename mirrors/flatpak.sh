@@ -48,9 +48,9 @@ mirror_status() {
   fi
   url="${r#* }"
   case "$url" in
-    *sjtug.sjtu.edu.cn*|*ustc.edu.cn*) echo "✓ 国内缓存（${r%% *}：$url）" ;;
-    *flathub.org*) echo "✗ 官方源（${r%% *}：$url），建议切换国内缓存" ;;
-    *) echo "✗ 自定义源（${r%% *}：$url）" ;;
+    *sjtug.sjtu.edu.cn*|*ustc.edu.cn*) echo "✓ 国内缓存（${r%% *}：${url}）" ;;
+    *flathub.org*) echo "✗ 官方源（${r%% *}：${url}），建议切换国内缓存" ;;
+    *) echo "✗ 自定义源（${r%% *}：${url}）" ;;
   esac
 }
 
@@ -60,7 +60,7 @@ mirror_apply() {
     sjtug)    url="https://mirrors.sjtug.sjtu.edu.cn/flathub" ;;
     ustc)     url="https://mirrors.ustc.edu.cn/flathub" ;;
     official) url="$_FLATHUB_OFFICIAL" ;;
-    *) die "未知源：$choice（可选：sjtug / ustc / official）" ;;
+    *) die "未知源：${choice}（可选：sjtug / ustc / official）" ;;
   esac
 
   local r scope sudo_cmd=""
@@ -85,7 +85,7 @@ mirror_apply() {
 
   local cur="${r#* }"
   if [ "$cur" = "$url" ]; then
-    log "flathub（$scope）已指向 $url，不做改动"
+    log "flathub（${scope}）已指向 ${url}，不做改动"
     return 0
   fi
   if [ "$DRY_RUN" = 1 ]; then
@@ -94,7 +94,7 @@ mirror_apply() {
   fi
   # shellcheck disable=SC2086
   ${sudo_cmd:+$sudo_cmd} flatpak --"$scope" remote-modify flathub --url="$url" || die "切换失败"
-  log "flathub（$scope）已切换 → $url"
+  log "flathub（${scope}）已切换 → $url"
   if [ "$choice" != "official" ]; then
     log "注意：国内镜像为缓存（extra-data 仍回源站下载），需与 flathub 有基本连通"
   fi
