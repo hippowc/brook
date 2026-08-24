@@ -50,7 +50,7 @@ _bailian_ensure_key() {
 }
 
 config_status() {
-  if [ -f "$HOME/.codex/config.toml" ]; then
+  if [ -f "$HOME/.codex/config.toml" ] && grep -q 'model_providers.bailian' "$HOME/.codex/config.toml"; then
     echo "配置[百炼]: ✓ ~/.codex/config.toml"
   else
     echo "配置[百炼]: ✗ 未配置（brook config codex bailian）"
