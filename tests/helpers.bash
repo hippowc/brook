@@ -34,7 +34,7 @@ teardown() {
 # 断言 stdout+stderr 合并后含目标串（die 走 stderr；bats 1.8+ 提供 $stderr）
 assert_any_output_contains() {
   local combined="${output}${stderr:-}"
-  if [[ "$combined" != *"$1"* ]]; then
+  if ! grep -qF "$1" <<<"$combined"; then
     echo "期望输出包含: $1" >&2
     echo "实际 output: $output" >&2
     [ -z "${stderr:-}" ] || echo "实际 stderr: $stderr" >&2

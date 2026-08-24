@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# L0 —— registry：target_of 平台映射 / meta 读写 / 二进制在位 / 工具解析
+# L0 -- registry: target_of platform mapping / meta IO / bin present / tool resolve
 load helpers
 
-@test "target_of：linux x86_64 → musl 三元组（bat）" {
+@test "target_of: linux x86_64 -> musl triple (bat)" {
   unset TARGET_linux_x86_64 TARGET_linux_arm64 TARGET_macos_x86_64 TARGET_macos_arm64 NOTE_macos
   # shellcheck source=/dev/null
   source "$BROOK_HOME/tools/bat/tool.conf"
@@ -13,7 +13,7 @@ load helpers
   [ "$output" = "x86_64-unknown-linux-musl" ]
 }
 
-@test "target_of：macos arm64 → apple 三元组（bat）" {
+@test "target_of: macos arm64 -> apple triple (bat)" {
   unset TARGET_linux_x86_64 TARGET_linux_arm64 TARGET_macos_x86_64 TARGET_macos_arm64 NOTE_macos
   # shellcheck source=/dev/null
   source "$BROOK_HOME/tools/bat/tool.conf"
@@ -24,7 +24,7 @@ load helpers
   [ "$output" = "aarch64-apple-darwin" ]
 }
 
-@test "target_of：平台无包时引用 NOTE 并失败（eza@macos）" {
+@test "target_of: no package -> uses NOTE and fails (eza@macos)" {
   unset TARGET_linux_x86_64 TARGET_linux_arm64 TARGET_macos_x86_64 TARGET_macos_arm64 NOTE_macos NOTE_linux
   # shellcheck source=/dev/null
   source "$BROOK_HOME/tools/eza/tool.conf"
@@ -35,7 +35,7 @@ load helpers
   assert_any_output_contains "macOS 官方不发布二进制"
 }
 
-@test "installed_tag_of：读 meta；缺失返回空" {
+@test "installed_tag_of: reads meta; empty when missing" {
   printf 'tag=v1.2.3\ndate=2026-08-24\n' > "$BROOK_META_DIR/bat"
   run installed_tag_of bat
   [ "$status" -eq 0 ]
@@ -45,7 +45,7 @@ load helpers
   [ -z "$output" ]
 }
 
-@test "save_meta：写入 tag/date/repo" {
+@test "save_meta: writes tag/date/repo" {
   REPO="sharkdp/bat"
   run save_meta bat v9.9.9
   [ "$status" -eq 0 ]
@@ -54,7 +54,7 @@ load helpers
   grep -q '^repo=sharkdp/bat$' "$BROOK_META_DIR/bat"
 }
 
-@test "binaries_present：全在返回 0，缺一返回 1（uv 双二进制）" {
+@test "binaries_present: all present -> 0; missing -> 1 (uv)" {
   # shellcheck source=/dev/null
   source "$BROOK_HOME/tools/uv/tool.conf"
   BINARIES="uv uvx"
@@ -67,7 +67,7 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
-@test "_resolve_tool：注册名/二进制别名/未知" {
+@test "_resolve_tool: name/alias/unknown" {
   run _resolve_tool bat
   [ "$output" = "bat" ]
   run _resolve_tool rg
