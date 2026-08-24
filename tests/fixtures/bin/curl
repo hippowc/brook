@@ -18,7 +18,7 @@ url=""; out=""; fmt=""; prev=""
 for a in "$@"; do
   case "$a" in
     -o|-w) prev="$a" ;;
-    http*) url="$a" ;;
+    http*|file://*) url="$a" ;;
     *)
       case "$prev" in
         -o) out="$a"; prev="" ;;
@@ -50,6 +50,27 @@ if printf '%s' "$url" | grep -q 'api.github.com/repos/'; then
   else
     printf '%s\n' '{"assets":[]}'
   fi
+  exit 0
+fi
+
+# B2) file:// 本地文件（official 轨测试：安装脚本即本地文件）
+if printf '%s' "$url" | grep -q '^file://'; then
+  src="${url#file://}"
+  if [ -f "$src" ]; then
+    if [ -n "$out" ] && [ "$out" != "/dev/null" ]; then
+      cp "$src" "$out"
+    else
+      cat "$src"
+    fi
+    code=200
+  else
+    code=404
+    echo "fake curl: file not found: $src" >&2
+  fi
+  if printf '%s' "$fmt" | grep -q 'http_code'; then
+    printf '%s\n' "$code"
+  fi
+  [ "$code" = "200" ] || exit 22
   exit 0
 fi
 

@@ -67,6 +67,17 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
+@test "extract_archive: tar.zst 正确解压（需 zstd）" {
+  if ! command -v zstd >/dev/null 2>&1; then skip "本机无 zstd"; fi
+  mkdir -p "$TEST_ROOT/pkg"
+  printf '#!/usr/bin/env bash\necho hi\n' > "$TEST_ROOT/pkg/zbin"
+  chmod +x "$TEST_ROOT/pkg/zbin"
+  ( cd "$TEST_ROOT/pkg" && tar -cf - zbin | zstd -q > "$TEST_ROOT/archive" )
+  run extract_archive "$TEST_ROOT" "some.tar.zst"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_ROOT/zbin" ]
+}
+
 @test "_resolve_tool: name/alias/unknown" {
   run _resolve_tool bat
   [ "$output" = "bat" ]

@@ -152,6 +152,8 @@ def check_basics() -> None:
     for lib in ("core.sh", "registry.sh", "official.sh", "mirror.sh", "proxy.sh"):
         if not (ROOT / "lib" / lib).exists():
             err(f"lib/{lib} 缺失")
+    if not (ROOT / "lib" / "toml.py").exists():
+        err("lib/toml.py 缺失（合并式写入 config.toml 依赖）")
     if not (ROOT / "brook").exists():
         err("brook 入口缺失")
     elif not (ROOT / "brook").stat().st_mode & 0o111:

@@ -22,6 +22,7 @@ load helpers
   run detect_archive_type "a.txz";     [ "$output" = "tar.xz" ]
   run detect_archive_type "a.zip";     [ "$output" = "zip" ]
   run detect_archive_type "a.zst";     [ "$output" = "zst" ]
+  run detect_archive_type "a.tar.zst"; [ "$output" = "tar.zst" ]
 }
 
 @test "detect_archive_type: fallback to ARCHIVE (raw=jq)" {

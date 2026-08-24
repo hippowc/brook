@@ -1,0 +1,36 @@
+#!/usr/bin/env bats
+# L1 —— mirror 轨：列表（离线） / pypi dry-run（假 uv） / apt dry-run（仅 Linux）
+load helpers
+
+@test "mirror: list 展示全部镜像（不落盘、不联网）" {
+  run "$BROOK_HOME/brook" mirror
+  assert_any_output_contains "apt"
+  assert_any_output_contains "pypi"
+  assert_any_output_contains "goproxy"
+  assert_any_output_contains "npm"
+}
+
+@test "mirror: pypi apply --dry-run 只预览不写 rc" {
+  run "$BROOK_HOME/brook" mirror pypi apply --dry-run
+  assert_any_output_contains "[dry-run]"
+  assert_any_output_contains "UV_DEFAULT_INDEX"
+  run grep -q "UV_DEFAULT_INDEX" "$HOME/.bashrc"
+  [ "$status" -ne 0 ]
+}
+
+@test "mirror: pypi apply 真实写入 rc（临时 HOME）+ 不重复" {
+  run "$BROOK_HOME/brook" mirror pypi apply
+  assert_any_output_contains "已写入"
+  grep -q 'UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"' "$HOME/.bashrc"
+  run grep -c 'UV_DEFAULT_INDEX' "$HOME/.bashrc"
+  [ "$output" = "1" ]
+}
+
+@test "mirror: apt apply --dry-run（仅 Ubuntu/Debian）" {
+  if [ ! -f /etc/os-release ] || ! grep -qE '^ID=(ubuntu|debian)$' /etc/os-release; then
+    skip "非 Ubuntu/Debian，跳过 apt 用例"
+  fi
+  run "$BROOK_HOME/brook" mirror apt apply --dry-run
+  # 已在国内源的机器会走"不做改动"短路径，两种都算通过；重点是命令不崩、不落盘
+  [[ "$output" == *"[dry-run]"* || "$output" == *"国内源"* || "$output" == *"不做改动"* ]]
+}

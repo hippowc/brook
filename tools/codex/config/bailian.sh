@@ -12,21 +12,24 @@ config_run() {
 
   _bailian_ensure_key "$key_env"
   mkdir -p "$HOME/.codex"
-  cat > "$HOME/.codex/config.toml" <<CFG
-model = "$model"
-model_provider = "$name"
-model_reasoning_effort = "medium"
-model_catalog_json = "~/.codex/model-catalog.local.json"
-
-[model_providers.$name]
-name = "$name"
-base_url = "$base_url"
-env_key = "$key_env"
-wire_api = "$wire_api"
-CFG
+  local cfg="$HOME/.codex/config.toml"
+  touch "$cfg"
+  # 合并式写入：只更新模型/provider 相关键，保留 [projects.*] 等既有段落
+  # （整文件覆盖会洗掉用户定制的信任段，此问题已知，2026-08 修复为合并）
+  if have python3; then
+    python3 "$BROOK_HOME/lib/toml.py" set-top "$cfg" \
+      model="$model" \
+      model_provider="$name" \
+      model_reasoning_effort="medium" \
+      model_catalog_json="~/.codex/model-catalog.local.json"
+    python3 "$BROOK_HOME/lib/toml.py" set-table "$cfg" "model_providers.$name" \
+      name="$name" base_url="$base_url" env_key="$key_env" wire_api="$wire_api"
+  else
+    die "合并写入 config.toml 需要 python3（macOS 装 Command Line Tools，Linux 用 apt install python3）"
+  fi
   install -m 0644 "$BROOK_HOME/tools/codex/catalog.json" \
     "$HOME/.codex/model-catalog.local.json"
-  log "配置已写入 ~/.codex/config.toml（$name / ${model}）"
+  log "配置已合并写入 ~/.codex/config.toml（$name / ${model}，既有段落已保留）"
 }
 
 _bailian_ensure_key() {

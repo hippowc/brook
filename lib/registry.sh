@@ -85,6 +85,7 @@ detect_archive_type() {
     *.tar.gz|*.tgz) echo tar.gz ;;
     *.tar.xz|*.txz) echo tar.xz ;;
     *.zip)          echo zip ;;
+    *.tar.zst)      echo tar.zst ;;
     *.zst)          echo zst ;;
     *)              echo "${ARCHIVE:-tar.gz}" ;;
   esac
@@ -104,6 +105,14 @@ extract_archive() {
         python3 -m zipfile -e "$tmp/archive" "$tmp/"
       else
         die "解压 zip 需要 unzip 或 python3：Linux 用 apt install unzip，macOS 用 brew install unzip"
+      fi
+      ;;
+    tar.zst)
+      # tar.zst = zstd 压缩的 tar 包：优先 tar 自带 zstd（GNU>=1.34/bsdtar），
+      # 不支持时降级 zstd -dc | tar -xf -
+      have zstd || die "解压 .tar.zst 需要 zstd 工具：Linux 用 sudo apt-get install -y zstd，macOS 用 brew install zstd"
+      if ! tar --zstd -xf "$tmp/archive" -C "$tmp" 2>/dev/null; then
+        zstd -dc "$tmp/archive" | tar -xf - -C "$tmp"
       fi
       ;;
     zst)
