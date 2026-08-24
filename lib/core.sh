@@ -184,7 +184,7 @@ list_tools() {
   _list_category installer "【安装包工具】包管理器" "装它，是为了用它装 brook 覆盖不到的东西"
   echo "标 ✓ 配置的工具装完后记得运行：brook config <工具>"
   echo "不会用某个工具？brook usage <工具> 查看常见用法速查"
-  echo "包源国内镜像（apt/yum/goproxy/pypi/npm）：brook mirror"
+  echo "包源国内镜像（apt/yum/goproxy/pypi/npm/flatpak）：brook mirror"
 }
 
 self_upgrade() {

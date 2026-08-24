@@ -47,6 +47,7 @@ brook mirror apt apply --mirror tsinghua  # 选源
 brook mirror goproxy apply                # Go 模块代理（goproxy.cn）
 brook mirror pypi apply                   # PyPI（uv 的 UV_DEFAULT_INDEX）
 brook mirror npm apply                    # npm registry（npmmirror）
+brook mirror flatpak apply                 # Flathub 应用源（flatpak，国内缓存）
 ```
 
 系统源（apt：Ubuntu/Debian 含 deb822；yum：CentOS/Rocky/Alma/Fedora）改前必备份、改后必验证、已是国内源则不动。注意区分：`brook proxies` 管 brook 自身下载加速，`sson/ssoff` 流量代理属于 shadowsocks-rust 工具。
