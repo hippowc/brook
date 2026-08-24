@@ -99,38 +99,80 @@ install 选项：
 USAGE
 }
 
-list_tools() {
-  local f tool desc tag status cfg
-  echo "可安装的工具（brook install <工具>，国内建议加 --proxy gh-proxy）："
-  echo
-  printf '%-16s %-16s %-6s %s\n' "工具" "状态" "配置" "说明"
-  for f in "$BROOK_HOME"/tools/*/tool.conf; do
-    [ -e "$f" ] || continue
-    tool="$(basename "$(dirname "$f")")"
-    desc="$(
-      # shellcheck source=/dev/null
-      source "$f"
-      echo "${DESC:-}"
-    )"
-    if ls "$BROOK_HOME/tools/$tool/config/"*.sh >/dev/null 2>&1; then cfg="✓"; else cfg="-"; fi
-    tag="$(installed_tag_of "$tool")"
-    if [ -n "$tag" ] && binaries_present "$tool"; then
-      status="✓ $tag"
-    elif [ -n "$tag" ]; then
-      status="△ $tag(缺二进制)"
-    else
-      status="✗ 未安装"
-    fi
-    printf '%-16s %-16s %-6s %s\n' "$tool" "$status" "$cfg" "$desc"
-  done
-  if ls "$BROOK_HOME"/official/*.conf >/dev/null 2>&1; then
-    echo
-    echo "超级官方应用（官方一行命令安装，brook 只管装，装后由工具自身管理）："
-    echo
-    printf '%-16s %-12s %s\n' "应用" "状态" "说明"
-    official_list
+# 读一个条目（工具或官方应用）的展示信息：类别/说明/配置支持/状态
+_entry_row() {
+  local f="$1" tool category desc cfg status
+  case "$f" in
+    */tools/*) tool="$(basename "$(dirname "$f")")" ;;
+    *)         tool="$(basename "$f" .conf)" ;;
+  esac
+  category="$(
+    # shellcheck source=/dev/null
+    source "$f"
+    echo "${CATEGORY:-binary}"
+  )"
+  desc="$(
+    # shellcheck source=/dev/null
+    source "$f"
+    echo "${DESC:-}"
+  )"
+  if [ -d "$BROOK_HOME/tools/$tool/config" ] && ls "$BROOK_HOME/tools/$tool/config/"*.sh >/dev/null 2>&1; then
+    cfg="✓"
+  else
+    cfg="-"
   fi
+  case "$f" in
+    */tools/*)
+      if [ -n "$(installed_tag_of "$tool")" ] && binaries_present "$tool"; then
+        status="✓ $(installed_tag_of "$tool")"
+      elif [ -n "$(installed_tag_of "$tool")" ]; then
+        status="△ $(installed_tag_of "$tool")(缺二进制)"
+      else
+        status="✗ 未安装"
+      fi
+      ;;
+    *)
+      if (
+        # shellcheck source=/dev/null
+        source "$f"
+        _official_installed
+      ); then
+        status="✓ 已安装"
+      else
+        status="✗ 未安装"
+      fi
+      ;;
+  esac
+  printf '%s\t%s\t%s\t%s\t%s\n' "$category" "$tool" "$status" "$cfg" "$desc"
+}
+
+_list_category() {
+  local cat="$1" title="$2" note="$3" f row rows="" found=0
+  for f in "$BROOK_HOME"/tools/*/tool.conf "$BROOK_HOME"/official/*.conf; do
+    [ -e "$f" ] || continue
+    row="$(_entry_row "$f")"
+    [ "${row%%	*}" = "$cat" ] || continue
+    found=1
+    rows="$rows$row
+"
+  done
+  [ "$found" = 1 ] || return 0
+  echo "$title"
+  [ -n "$note" ] && echo "$note"
+  printf '%-16s %-18s %-6s %s\n' "名称" "状态" "配置" "说明"
+  printf '%s' "$rows" | while IFS=$'\t' read -r _c tool status cfg desc; do
+    [ -n "$tool" ] || continue
+    printf '%-16s %-18s %-6s %s\n' "$tool" "$status" "$cfg" "$desc"
+  done
   echo
+}
+
+list_tools() {
+  echo "可安装的条目（brook install <名称>，国内建议加 --proxy gh-proxy）："
+  echo
+  _list_category binary "【二进制工具】常用 CLI" ""
+  _list_category language "【语言工具】工具链管理器" "先装管理器，再用它装具体版本（如 g install 1.24 / uv python install 3.12）"
+  _list_category installer "【安装包工具】包管理器" "装它，是为了用它装 brook 覆盖不到的东西"
   echo "标 ✓ 配置的工具装完后记得运行：brook config <工具>"
   echo "不会用某个工具？brook usage <工具> 查看常见用法速查"
 }

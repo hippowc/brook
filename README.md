@@ -51,6 +51,7 @@ tools/<名字>/
 
 ```
 DESC="一句话说明"
+CATEGORY="binary"                        # binary | language | installer（list 分组用）
 REPO="owner/repo"
 ASSET="模板-{{TAG}}-{{TARGET}}.tar.gz"   # 占位符：{{TAG}} 版本、{{TARGET}} 平台
 TARGET_linux_x86_64="x86_64-unknown-linux-musl"

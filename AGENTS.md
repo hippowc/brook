@@ -13,6 +13,14 @@ brook = 环境引导器（starter）：全新机器上，当没有更好的安�
 
 两轨互不引用：tools/ 只由 lib/registry.sh 处理，official/ 只由 lib/official.sh 处理。
 
+**机制分轨，功能分类，两个维度正交**：轨（目录）决定安装机制；类（conf 的 `CATEGORY` 字段）决定功能定位，只影响 `brook list` 的分组展示：
+
+- `binary`：二进制工具（常用 CLI，默认值）
+- `language`：语言工具（工具链管理器：rustup / g / uv / fnm）
+- `installer`：安装包工具（包管理器：brew）
+
+新增条目时必须想清楚它属于哪一轨、哪一类。
+
 ## 架构
 
 ```
@@ -45,7 +53,7 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 ### 新增工具
 
 1. 用 GitHub API 查该仓库最新 release 的**完整资产列表**，确认命名格式与平台覆盖
-2. 建 `tools/<名字>/tool.conf`，写实测过的映射（字段说明见 README）
+2. 建 `tools/<名字>/tool.conf`，写实测过的映射（字段说明见 README），并定好 `CATEGORY`（binary/language/installer）
 3. 可选：`config/<实践>.sh`（配置实践）、`usage.md`（用法速查）；不支持的平台可在 tool.conf 写 `NOTE_<os>="替代方案提示"`（如 macOS 引导用户走 brew）
 4. 实测：隔离 HOME 跑一遍 install（见下节）
 
@@ -57,7 +65,7 @@ tools/<工具>/        # 一个目录 = 一个工具的一切
 
 ### 新增超级官方应用
 
-`official/<名字>.conf`：`DESC`（明示需要 sudo/自管理等差异）、`SCRIPT_URL`（官网首屏那一行的脚本地址）、`BINARIES`（状态检测用）。可选 `<名字>.usage.md`。准入标准见文首收录标准。
+`official/<名字>.conf`：`DESC`（明示需要 sudo/自管理等差异）、`CATEGORY`（language/installer）、`SCRIPT_URL`（官网首屏那一行的脚本地址）、`BINARIES`（状态检测用）。可选 `<名字>.usage.md`。准入标准见文首收录标准。
 
 ### 更新代理预设
 
