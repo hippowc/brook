@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# 测试用假 uname —— 让 brook 在任意 runner 上都被视为 linux x86_64，保证 L1 测试确定性
+case "${1:-}" in
+  -s) echo Linux ;;
+  *)  echo x86_64 ;;
+esac
