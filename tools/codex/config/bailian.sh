@@ -37,6 +37,13 @@ _bailian_ensure_key() {
     # shellcheck source=/dev/null
     source "$rc" 2>/dev/null || true
     [ -n "$(printenv "$var" 2>/dev/null || true)" ] && return 0
+    # 非交互 shell 常被 rc 头部交互守卫拦截（Ubuntu 默认 .bashrc），直接取 export 行求值
+    local line
+    line="$(grep "^export $var=" "$rc" | head -1)"
+    if [ -n "$line" ]; then
+      eval "$line"
+      [ -n "$(printenv "$var" 2>/dev/null || true)" ] && return 0
+    fi
   fi
   if [ -t 0 ]; then
     read -rsp "请粘贴 ${var}（不回显）: " k; echo
