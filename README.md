@@ -1,6 +1,8 @@
 # brook
 
-GitHub release 二进制安装器：把 GitHub 上发布的二进制工具统一装到本地（`~/.local/bin`）并加入 PATH。支持 Linux / macOS（x86_64 / arm64），支持国内加速代理。
+环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。
+
+不是包管理器替代品——apt / brew / npm 擅长的场景请用它们；brook 是引导层：把常用 CLI 工具与语言工具链（rustup / g / uv / fnm）统一装到 `~/.local/bin` 并加入 PATH。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理。
 
 维护与扩展本项目请先读 [AGENTS.md](AGENTS.md)。
 

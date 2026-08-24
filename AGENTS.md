@@ -2,7 +2,9 @@
 
 ## 项目定位
 
-brook = GitHub release 二进制安装器：把 GitHub Releases 发布的命令行工具一键装到 `~/.local/bin`（自动加入 PATH）。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
+brook = 环境引导器（starter）：全新机器上，当没有更好的安装方式时，不用查网页，在 brook 里直接闭环。不替代包管理器：apt/brew/npm 更合适的场景用系统包管理器；brook 把 GitHub 官方二进制与超级官方应用一行命令统一装到用户级（`~/.local/bin`），覆盖常用 CLI 工具与语言工具链（rustup / g / uv / fnm）。支持 Linux / macOS（x86_64 / arm64），内置国内加速代理与资产兜底链。纯 bash（兼容 macOS bash 3.2），除 git/curl/tar 外零依赖。
+
+**收录判断**：先问"目标平台上它有没有好的系统级安装方式"——有则不收（如 mpv/ffmpeg 走 brew/apt）；brook 只补"裸机无网页可查也能闭环"的位。
 
 **收录标准（双轨，代码与数据完全独立）**：
 
