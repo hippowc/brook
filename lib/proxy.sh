@@ -58,7 +58,7 @@ _measure_speed() {
     return 0
   fi
   speed="${out%%|*}"
-  time="${out##*|}"
+  time="$(printf '%.1f' "${out##*|}")"
   echo "${speed%.*}|${time}s"
 }
 
