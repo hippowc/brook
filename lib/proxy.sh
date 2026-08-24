@@ -48,3 +48,51 @@ proxy_apply() {
     *) die "代理模式无效: $mode" ;;
   esac
 }
+
+# 实测各预设当前下载速度（用 codex 仓库的小资产 bwrap，约 0.2MB）
+_measure_speed() {
+  local url="$1" out speed time
+  out="$(curl -fsSL -o /dev/null --connect-timeout 8 --max-time 60 -w '%{speed_download}|%{time_total}' "$url" 2>/dev/null || true)"
+  if [ -z "$out" ]; then
+    echo "0|不可达或超时"
+    return 0
+  fi
+  speed="${out%%|*}"
+  time="${out##*|}"
+  echo "${speed%.*}|${time}s"
+}
+
+_fmt_speed() {
+  awk -v s="$1" 'BEGIN{ if (s>=1048576) printf "%.1fMB/s", s/1048576; else if (s>=1024) printf "%.0fKB/s", s/1024; else printf "%.0fB/s", s }'
+}
+
+proxies_test() {
+  local repo="openai/codex" loc tag base
+  log "解析测试资产（$repo 最新 release）..."
+  loc="$(curl -fsSL -o /dev/null --max-redirs 5 -w '%{url_effective}' "https://github.com/$repo/releases/latest" 2>/dev/null || true)"
+  tag="$(printf '%s' "$loc" | sed -n 's#.*/releases/tag/\(.*\)$#\1#p')"
+  [ -n "$tag" ] || die "无法解析测试资产（网络问题）"
+  base="https://github.com/$repo/releases/download/$tag/bwrap-x86_64-unknown-linux-musl.zst"
+  log "测试资产：bwrap（~0.2MB，tag=$tag）；结果受当时网络波动影响"
+  local results name mode rest url from to
+  results="direct|$(_measure_speed "$base")"
+  while IFS='|' read -r name mode rest; do
+    case "$mode" in
+      prefix) url="${rest%/}/$base" ;;
+      replace)
+        from="$(printf '%s' "$rest" | cut -d'|' -f1)"
+        to="$(printf '%s' "$rest" | cut -d'|' -f2)"
+        url="${base//$from/$to}" ;;
+      *) continue ;;
+    esac
+    results="$results
+$name|$(_measure_speed "$url")"
+  done < <(grep -Ev '^[[:space:]]*(#|$)' "$BROOK_HOME/proxies.conf")
+  echo
+  printf '%-14s %-12s %s\n' "预设" "速度" "结果"
+  printf '%s\n' "$results" | sort -t'|' -k2 -rn | while IFS='|' read -r n speed note; do
+    printf '%-14s %-12s %s\n' "$n" "$(_fmt_speed "$speed")" "$note"
+  done
+  echo
+  echo "用法：安装命令加 --proxy <预设>，或 export BROOK_PROXY=<预设>"
+}

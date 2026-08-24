@@ -67,18 +67,19 @@ brook —— GitHub release 二进制安装器
   brook list                            看看能装什么（含状态）
   brook install ripgrep                 装一个试试
   brook install codex --proxy gh-proxy  国内网络建议加代理
-  brook config codex                    部分工具装完需要配置
 
 子命令：
   brook list                          列出全部工具及安装状态
-  brook install <工具> [选项]          安装（默认最新版）
-  brook upgrade [工具]                 升级指定工具；不带工具 = 更新 brook 自身
-  brook status <工具>                  查看安装与配置状态
+  brook install <工具>... [选项]       安装（可多个；二进制名可当别名：rg/hx/nvim）
+  brook upgrade [工具]...              升级工具（可多个）；不带工具 = 更新 brook 自身
+  brook status <工具>...               查看安装与配置状态
   brook config <工具>                  列出该工具的配置实践及状态
   brook config <工具> <实践>            执行指定配置实践
   brook usage <工具>                   查看常见用法速查
-  brook remove <工具>                  移除
+  brook remove <工具>...               移除
   brook proxies                       查看加速代理预设
+  brook proxies test                  实测各代理当前速度
+  brook --version                     显示版本
 
 install 选项：
   --version V    指定版本（默认 latest）
@@ -175,7 +176,7 @@ _list_category() {
 }
 
 list_tools() {
-  echo "可安装的条目（brook install <名称>，国内建议加 --proxy gh-proxy）："
+  echo "可安装的条目（brook install <名称>...，可批量、可用二进制别名；国内建议加 --proxy）："
   echo
   _list_category binary "【二进制工具】常用 CLI" ""
   _list_category language "【语言工具】工具链管理器" "先装管理器，再用它装具体版本（如 g install 1.24 / uv python install 3.12）"
@@ -209,19 +210,27 @@ brook_main() {
   local cmd="${1:-help}"
   case "$cmd" in
     help|-h|--help) usage ;;
+    --version|-V) brook_version ;;
     list) list_tools ;;
-    proxies) list_proxies ;;
+    proxies)
+      if [ "${2:-}" = "test" ]; then proxies_test; else list_proxies; fi
+      ;;
     upgrade)
       if [ $# -ge 2 ]; then
         shift
-        _dispatch_tool upgrade "$@"
+        _dispatch_multi upgrade "$@"
       else
         self_upgrade
       fi
       ;;
-    install|status|config|usage|remove)
+    install|status|usage|remove)
       shift
-      [ $# -ge 1 ] || die "用法：brook $cmd <工具>（brook help 查看帮助）"
+      [ $# -ge 1 ] || die "用法：brook $cmd <工具>...（brook help 查看帮助）"
+      _dispatch_multi "$cmd" "$@"
+      ;;
+    config)
+      shift
+      [ $# -ge 1 ] || die "用法：brook config <工具> [实践]（brook help 查看帮助）"
       _dispatch_tool "$cmd" "$@"
       ;;
     mirror)
@@ -233,12 +242,97 @@ brook_main() {
       fi
       ;;
     *)
-      if [ -f "$BROOK_HOME/tools/$cmd/tool.conf" ] || [ -f "$BROOK_HOME/official/$cmd.conf" ]; then
+      if _resolve_tool "$cmd" >/dev/null 2>&1; then
         die "命令格式为 'brook <动作> <工具>'，如：brook install $cmd"
       fi
       die "未知命令 '$cmd'（brook help 查看用法）"
       ;;
   esac
+}
+
+brook_version() {
+  if [ -d "$BROOK_HOME/.git" ]; then
+    echo "brook $(git -C "$BROOK_HOME" rev-parse --short HEAD 2>/dev/null || echo '?')（$(git -C "$BROOK_HOME" log -1 --format=%cd --date=short 2>/dev/null || echo '?')）"
+  else
+    echo "brook（非 git 安装）"
+  fi
+}
+
+# 解析工具名：注册名（目录名/官方应用名）直认；否则按二进制名反查（如 rg→ripgrep、hx→helix）
+_resolve_tool() {
+  local name="$1" f t b
+  if [ -f "$BROOK_HOME/tools/$name/tool.conf" ] || [ -f "$BROOK_HOME/official/$name.conf" ]; then
+    echo "$name"
+    return 0
+  fi
+  for f in "$BROOK_HOME"/tools/*/tool.conf "$BROOK_HOME"/official/*.conf; do
+    [ -e "$f" ] || continue
+    case "$f" in
+      */tools/*) t="$(basename "$(dirname "$f")")" ;;
+      *)         t="$(basename "$f" .conf)" ;;
+    esac
+    for b in $(
+      # shellcheck source=/dev/null
+      source "$f"
+      echo "${BINARIES:-}"
+    ); do
+      if [ "$b" = "$name" ]; then
+        echo "$t"
+        return 0
+      fi
+    done
+  done
+  return 1
+}
+
+# 多工具分发：位置参数都是工具（支持别名），选项全局生效
+_dispatch_multi() {
+  local action="$1"
+  shift
+  local tools=()
+  TOOL_VERSION="latest"
+  FORCE=0
+  PROXY_NAME="${BROOK_PROXY:-}"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --version)   TOOL_VERSION="${2:-}"; shift 2 ;;
+      --version=*) TOOL_VERSION="${1#*=}"; shift ;;
+      --proxy)     PROXY_NAME="${2:-}"; shift 2 ;;
+      --proxy=*)   PROXY_NAME="${1#*=}"; shift ;;
+      --force|-f)  FORCE=1; shift ;;
+      -*) die "未知参数: $1" ;;
+      *) tools+=("$1"); shift ;;
+    esac
+  done
+  [ ${#tools[@]} -ge 1 ] || die "用法：brook $action <工具>..."
+  local t resolved fails=0
+  for t in "${tools[@]}"; do
+    if ! resolved="$(_resolve_tool "$t")"; then
+      warn "未知工具 '$t'（brook list 查看可用）"
+      fails=1
+      continue
+    fi
+    if ! _run_one "$action" "$resolved"; then
+      fails=1
+    fi
+  done
+  [ "$fails" = 0 ] || exit 1
+}
+
+# 单个工具执行：official/ 轨优先；--proxy/--version/--force 对官方脚本无效时明示
+_run_one() {
+  local action="$1" tool="$2"
+  if [ -f "$BROOK_HOME/official/$tool.conf" ]; then
+    if [ "$action" = "install" ]; then
+      if [ -n "$PROXY_NAME" ] || [ "$TOOL_VERSION" != "latest" ] || [ "$FORCE" = 1 ]; then
+        warn "官方应用走官方脚本安装：--proxy/--version/--force 不生效（网络问题可设 https_proxy 环境变量）"
+      fi
+    fi
+    run_official "$tool" "$action"
+    return $?
+  fi
+  [ -f "$BROOK_HOME/tools/$tool/tool.conf" ] || die "未知工具 '$tool'（brook list 查看可用）"
+  run_tool "$tool" "$action" ""
 }
 
 # 按工具分发：official/ 优先判定（独立轨），其余走 tools/ 流水线
