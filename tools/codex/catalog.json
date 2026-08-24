@@ -59,7 +59,7 @@
           "description": "Maximum reasoning depth for complex problems"
         }
       ],
-      "context_window": 131072,
+      "context_window": 1000000,
       "effective_context_window_percent": 95,
       "supports_parallel_tool_calls": false,
       "supports_image_detail_original": false,
@@ -98,7 +98,7 @@
           "description": "Maximum reasoning depth for complex problems"
         }
       ],
-      "context_window": 131072,
+      "context_window": 1000000,
       "effective_context_window_percent": 95,
       "supports_parallel_tool_calls": false,
       "supports_image_detail_original": false,
@@ -137,7 +137,7 @@
           "description": "Maximum reasoning depth for complex problems"
         }
       ],
-      "context_window": 131072,
+      "context_window": 1048576,
       "effective_context_window_percent": 95,
       "supports_parallel_tool_calls": false,
       "supports_image_detail_original": false,
