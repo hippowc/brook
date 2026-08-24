@@ -213,8 +213,21 @@ def check_bash32_compat() -> None:
                     err(f"{f}:{i}: `$` 后变量名紧跟非 ASCII 字符（{m.group(2)}），"
                         f"bash 3.2 会解析异常，请用 ${{{m.group(1)}}}")
 
+
+def check_bats_test_names() -> None:
+    """bats 测试名必须纯 ASCII：macOS bash 3.2 无法解析含多字节字符的 @test 名
+    （会把 UTF-8 首字节并进内部函数名 → 'unknown test name'）。"""
+    for f in sorted((ROOT / "tests").glob("*.bats")):
+        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
+            st = line.strip()
+            if not st.startswith("@test "):
+                continue
+            if any(ord(c) > 127 for c in st):
+                err(f"{f}:{i}: @test 名含非 ASCII 字符（macOS bash 3.2 无法解析），请改为英文：{st!r}")
+
 def main() -> int:
     check_basics()
+    check_bats_test_names()
     check_bash32_compat()
     check_tools()
     check_codex_catalog()

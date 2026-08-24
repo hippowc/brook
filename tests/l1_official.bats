@@ -2,7 +2,7 @@
 # L1 —— official 轨：安装检测 / 前置依赖检查 / 官方脚本安装全流程（离线）
 load helpers
 
-@test "official: _official_installed 按 BINARIES 查 PATH" {
+@test "official: _official_installed via BINARIES" {
   cat > "$TEST_ROOT/of-bin.conf" <<CONF
 BINARIES="fakeagent"
 CONF
@@ -15,7 +15,7 @@ CONF
   [ "$status" -eq 0 ]
 }
 
-@test "official: _official_installed 支持 CHECK_FILES 标志（sdkman 型）" {
+@test "official: _official_installed via CHECK_FILES" {
   cat > "$TEST_ROOT/of-file.conf" <<CONF
 CHECK_FILES="$TEST_ROOT/.fake-init.sh"
 CONF
@@ -26,7 +26,7 @@ CONF
   [ "$status" -eq 0 ]
 }
 
-@test "official: _check_prereqs 缺失时列出并失败" {
+@test "official: _check_prereqs missing -> fail" {
   cat > "$TEST_ROOT/of-prereq.conf" <<CONF
 PREREQS="brook_zz_no_such_cmd"
 CONF
@@ -35,7 +35,7 @@ CONF
   assert_any_output_contains "本机缺失"
 }
 
-@test "official: _check_prereqs 满足时通过" {
+@test "official: _check_prereqs satisfied -> pass" {
   cat > "$TEST_ROOT/of-prereq-ok.conf" <<CONF
 PREREQS="bash"
 CONF
@@ -43,7 +43,7 @@ CONF
   [ "$status" -eq 0 ]
 }
 
-@test "official: install 全流程（file:// 官方脚本）" {
+@test "official: install full flow (file:// script)" {
   printf '#!/usr/bin/env bash\ntouch "%s/.installed.marker"\n' "$TEST_ROOT" > "$TEST_ROOT/install.sh"
   cat > "$TEST_ROOT/of-install.conf" <<CONF
 DESC="fake official app"

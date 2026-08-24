@@ -67,7 +67,7 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
-@test "extract_archive: tar.zst 正确解压（需 zstd）" {
+@test "extract_archive: tar.zst extraction (needs zstd)" {
   if ! command -v zstd >/dev/null 2>&1; then skip "本机无 zstd"; fi
   mkdir -p "$TEST_ROOT/pkg"
   printf '#!/usr/bin/env bash\necho hi\n' > "$TEST_ROOT/pkg/zbin"

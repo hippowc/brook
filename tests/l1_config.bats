@@ -17,7 +17,7 @@ k = 1
 TOML
 }
 
-@test "config codex bailian：合并写入并保留 projects 段" {
+@test "config codex bailian: merge write keeps projects section" {
   export OPENAI_API_KEY="sk-test-123"
   write_initial_cfg
   run "$BROOK_HOME/brook" config codex bailian
@@ -37,7 +37,7 @@ TOML
   [ -f "$HOME/.codex/model-catalog.local.json" ]
 }
 
-@test "config codex bailian：幂等，二次运行不重复键" {
+@test "config codex bailian: idempotent, no duplicate keys" {
   export OPENAI_API_KEY="sk-test-456"
   mkdir -p "$HOME/.codex"
   : > "$HOME/.codex/config.toml"

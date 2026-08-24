@@ -2,7 +2,7 @@
 # L1 —— mirror 轨：列表（离线） / pypi dry-run（假 uv） / apt dry-run（仅 Linux）
 load helpers
 
-@test "mirror: list 展示全部镜像（不落盘、不联网）" {
+@test "mirror: list shows all (offline)" {
   run "$BROOK_HOME/brook" mirror
   assert_any_output_contains "apt"
   assert_any_output_contains "pypi"
@@ -10,7 +10,7 @@ load helpers
   assert_any_output_contains "npm"
 }
 
-@test "mirror: pypi apply --dry-run 只预览不写 rc" {
+@test "mirror: pypi apply --dry-run preview only" {
   run "$BROOK_HOME/brook" mirror pypi apply --dry-run
   assert_any_output_contains "[dry-run]"
   assert_any_output_contains "UV_DEFAULT_INDEX"
@@ -18,7 +18,7 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
-@test "mirror: pypi apply 真实写入 rc（临时 HOME）+ 不重复" {
+@test "mirror: pypi apply writes rc + idempotent" {
   run "$BROOK_HOME/brook" mirror pypi apply
   assert_any_output_contains "已写入"
   grep -q 'UV_DEFAULT_INDEX="https://pypi.tuna.tsinghua.edu.cn/simple"' "$HOME/.bashrc"
@@ -26,7 +26,7 @@ load helpers
   [ "$output" = "1" ]
 }
 
-@test "mirror: apt apply --dry-run（仅 Ubuntu/Debian）" {
+@test "mirror: apt apply --dry-run (ubuntu/debian only)" {
   if [ ! -f /etc/os-release ] || ! grep -qE '^ID=(ubuntu|debian)$' /etc/os-release; then
     skip "非 Ubuntu/Debian，跳过 apt 用例"
   fi
