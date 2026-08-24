@@ -32,7 +32,16 @@ CFG
 _bailian_ensure_key() {
   local var="$1" rc k
   rc="$(rc_file)"
-  [ -n "$(printenv "$var" 2>/dev/null || true)" ] && return 0
+  if [ -n "$(printenv "$var" 2>/dev/null || true)" ]; then
+    # key 在环境但不在 rc：落盘持久化，避免换 shell/重登后失效
+    touch "$rc"
+    if ! grep -q "^export $var=" "$rc"; then
+      printf 'export %s=%q
+' "$var" "$(printenv "$var")" >> "$rc"
+      log "$var 已在环境中，已写入 $rc 持久化"
+    fi
+    return 0
+  fi
   if [ -f "$rc" ] && grep -q "export $var=" "$rc"; then
     # shellcheck source=/dev/null
     source "$rc" 2>/dev/null || true
