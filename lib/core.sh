@@ -174,23 +174,29 @@ _list_category() {
 "
   done
   [ "$found" = 1 ] || return 0
+  echo
   echo "$title"
   [ -n "$note" ] && echo "$note"
-  printf '%-16s %-18s %-6s %s\n' "名称" "状态" "配置" "说明"
+  # 单定宽列（NAME 全 ASCII 对齐可靠）+ 流式详情（中文不串列），与 brook mirror 风格一致
   printf '%s' "$rows" | while IFS=$'\t' read -r _c tool status cfg desc; do
     [ -n "$tool" ] || continue
-    printf '%-16s %-18s %-6s %s\n' "$tool" "$status" "$cfg" "$desc"
+    if [ "$cfg" = "有" ]; then
+      printf '%-18s %s · 配置:%s · %s\n' "$tool" "$status" "$cfg" "$desc"
+    else
+      printf '%-18s %s · %s\n' "$tool" "$status" "$desc"
+    fi
   done
-  echo
 }
 
 list_tools() {
   echo "可安装的条目（brook install <名称>...，可批量、可用二进制别名；国内建议加 --proxy）："
   echo
+  printf '%-18s %s\n' "NAME" "状态 · 配置 · 说明"
   _list_category binary "【二进制工具】常用 CLI" ""
   _list_category language "【语言工具】工具链管理器" "先装管理器，再用它装具体版本（如 g install 1.24 / uv python install 3.12）"
   _list_category installer "【安装包工具】包管理器" "装它，是为了用它装 brook 覆盖不到的东西"
-  echo "标 "有" 配置的工具装完后记得运行：brook config <工具>"
+  echo
+  echo "状态带 配置:有 的工具装完后记得运行：brook config <工具>"
   echo "不会用某个工具？brook usage <工具> 查看常见用法速查"
   echo "包源国内镜像（apt/yum/goproxy/pypi/npm/flatpak）：brook mirror"
 }
