@@ -9,7 +9,13 @@
 ## 安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /tmp/brook-install.sh && bash /tmp/brook-install.sh
+curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh | bash
+```
+
+国内网络 raw.githubusercontent.com 不稳时，走镜像：
+
+```bash
+curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/hippowc/brook/main/install.sh | bash
 ```
 
 ## 使用

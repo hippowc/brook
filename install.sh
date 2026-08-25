@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # brook 安装器：克隆到 ~/.brook，把 brook 命令链接到 ~/.local/bin
-# curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh -o /tmp/brook-install.sh && bash /tmp/brook-install.sh
+# curl -fsSL https://raw.githubusercontent.com/hippowc/brook/main/install.sh | bash
+# 国内：curl -fsSL https://ghfast.top/https://raw.githubusercontent.com/hippowc/brook/main/install.sh | bash
 set -euo pipefail
 
 BROOK_REPO="${BROOK_REPO:-https://github.com/hippowc/brook.git}"
