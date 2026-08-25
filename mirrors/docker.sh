@@ -1,6 +1,6 @@
 # docker —— Docker Hub 镜像源（/etc/docker/daemon.json，Linux，需 root）
 
-MIRROR_PROVIDERS="daocloud(默认) / ustc"
+MIRROR_PROVIDERS="daocloud(默认) / 1ms / 1panel"
 NEED_ROOT=1
 
 mirror_desc() { echo "Docker Hub 镜像源（写 daemon.json，改后重启 docker）"; }
@@ -26,8 +26,9 @@ mirror_apply() {
   local choice="${MIRROR_CHOICE:-daocloud}" url f=/etc/docker/daemon.json
   case "$choice" in
     daocloud) url="https://docker.m.daocloud.io" ;;
-    ustc)     url="https://docker.mirrors.ustc.edu.cn" ;;
-    *) die "未知源：${choice}（可选：daocloud / ustc）" ;;
+    1ms)      url="https://docker.1ms.run" ;;
+    1panel)   url="https://docker.1panel.live" ;;
+    *) die "未知源：${choice}（可选：daocloud / 1ms / 1panel）" ;;
   esac
   if [ "$DRY_RUN" = 1 ]; then
     log "[dry-run] 将写入 ${f}：{ \\"registry-mirrors\\": [\\"${url}\\"] }，并提示重启 docker"
