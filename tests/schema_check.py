@@ -121,11 +121,16 @@ def check_official() -> None:
         name = conf.stem
         o = kv(conf.read_text(encoding="utf-8"))
         tag = f"official/{name}.conf"
-        for key in ("DESC", "CATEGORY", "SCRIPT_URL"):
+        for key in ("DESC", "CATEGORY"):
             if not o.get(key):
                 err(f"{tag}: 缺必需字段 {key}")
+        # 安装入口：本地内置脚本（INSTALL_LOCAL，如 docker 国内直装）或官方脚本 URL（SCRIPT_URL）
+        if not (o.get("SCRIPT_URL") or o.get("INSTALL_LOCAL")):
+            err(f"{tag}: 缺 SCRIPT_URL 或 INSTALL_LOCAL（安装入口）")
         if o.get("SCRIPT_URL") and not re.match(r'^https?://', o["SCRIPT_URL"]):
             err(f"{tag}: SCRIPT_URL 应为 http(s) URL")
+        if o.get("INSTALL_LOCAL") and not (conf.parent / o["INSTALL_LOCAL"]).exists():
+            err(f"{tag}: INSTALL_LOCAL 指向的脚本不存在（{o['INSTALL_LOCAL']}）")
         if not (o.get("BINARIES") or o.get("CHECK_FILES")):
             err(f"{tag}: 需提供 BINARIES 或 CHECK_FILES（判定安装状态用）")
         if not conf.with_name(name + ".usage.md").exists():

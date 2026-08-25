@@ -1,7 +1,15 @@
 # Docker 常见用法
 
-Linux 用官方脚本安装（brook install docker）；macOS 用 Docker Desktop（GUI 安装）。
+Linux 用 brook 内置国内仓库直装（brook install docker）；macOS 用 Docker Desktop（GUI 安装）。
 装完新开终端即可用 docker。
+
+## 安装说明
+
+```bash
+brook install docker                # 默认 TUNA 源直装 docker-ce（需 root，brook 自动 sudo）
+DOCKER_MIRROR=aliyun brook install docker   # 换阿里云源（可选 ustc）
+```
+> 为什么不用官方脚本：get.docker.com 在国内不可达（连接被重置），brook 改用 TUNA/USTC/阿里云 docker-ce 仓库直装。
 
 ## 装完第一步
 

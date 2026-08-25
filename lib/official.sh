@@ -58,17 +58,38 @@ official_list() {
 }
 
 official_install() {
-  local name="$1" tmp
-  [ -n "${SCRIPT_URL:-}" ] || die "${name}：conf 缺少 SCRIPT_URL"
+  local name="$1" tmp script
+  [ -n "${SCRIPT_URL:-}${INSTALL_LOCAL:-}" ] || die "${name}：conf 缺少 SCRIPT_URL / INSTALL_LOCAL"
   if _official_installed; then
     log "$name 已安装，无需重复（如需重装请用官方方式）"
     return 0
   fi
   _check_prereqs "$name"
+
+  # 内置安装脚本（官方脚本在国内不可达时使用，如 docker 的 get.docker.com）
+  if [ -n "${INSTALL_LOCAL:-}" ]; then
+    script="$BROOK_HOME/official/${INSTALL_LOCAL}"
+    [ -f "$script" ] || die "${name} 内置安装脚本缺失：${script}"
+    log "使用 brook 内置安装脚本（官方脚本国内不可达）：${INSTALL_LOCAL}"
+    if [ "${NEED_ROOT:-0}" = 1 ] && [ "$(id -u)" != 0 ]; then
+      have sudo || die "${name} 需要 root 且系统无 sudo：请用 root 重新运行"
+      log "需要 root，通过 sudo 执行（会要求输入密码）"
+      exec sudo bash "$script"
+    fi
+    bash "$script" || die "内置安装脚本执行失败"
+    log "$name 安装完成（此后的更新与管理请用工具自身机制）"
+    return 0
+  fi
+
   tmp="$(mktemp)"
   log "获取官方安装脚本：$SCRIPT_URL"
-  curl -fsSL "$SCRIPT_URL" -o "$tmp" || { rm -f "$tmp"; die "获取安装脚本失败（网络问题可设 https_proxy 环境变量）"; }
-  log "即将执行官方安装脚本（可能需要 sudo 与交互确认）"
+  curl -fsSL "$SCRIPT_URL" -o "$tmp" || { rm -f "$tmp"; die "获取安装脚本失败（网络问题可设 https_proxy 环境变量，或该官方脚本在国内不可达）"; }
+  log "即将执行官方安装脚本（可能需要交互确认）"
+  if [ "${NEED_ROOT:-0}" = 1 ] && [ "$(id -u)" != 0 ]; then
+    have sudo || { rm -f "$tmp"; die "$name 官方脚本需要 root 且系统无 sudo：请用 root 重新运行"; }
+    log "官方脚本需要 root，通过 sudo 执行（会要求输入密码）"
+    exec sudo bash "$tmp"
+  fi
   if ! bash "$tmp"; then
     rm -f "$tmp"
     die "官方安装脚本执行失败"

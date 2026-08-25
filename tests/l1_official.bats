@@ -54,3 +54,22 @@ CONF
   assert_any_output_contains "安装完成"
   [ -e "$TEST_ROOT/.installed.marker" ]
 }
+
+@test "official: docker built-in install script dry-run (apt/dnf systems)" {
+  if ! command -v apt-get >/dev/null 2>&1 && ! command -v dnf >/dev/null 2>&1 && ! command -v yum >/dev/null 2>&1; then
+    skip "本机无 apt/dnf/yum，跳过 docker dry-run"
+  fi
+  run bash "$BROOK_HOME/official/docker-install.sh" --dry-run
+  [ "$status" -eq 0 ]
+  assert_any_output_contains "将执行"
+  assert_any_output_contains "docker-ce"
+}
+
+@test "official: docker dry-run with USTC mirror" {
+  if ! command -v apt-get >/dev/null 2>&1 && ! command -v dnf >/dev/null 2>&1 && ! command -v yum >/dev/null 2>&1; then
+    skip "本机无 apt/dnf/yum，跳过 docker dry-run"
+  fi
+  DOCKER_MIRROR=ustc run bash "$BROOK_HOME/official/docker-install.sh" --dry-run
+  [ "$status" -eq 0 ]
+  assert_any_output_contains "mirrors.ustc.edu.cn"
+}
