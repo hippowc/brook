@@ -8,10 +8,10 @@
 #   mirror_apply       应用配置（尊重 $DRY_RUN 与 $MIRROR_CHOICE）
 
 mirror_list() {
-  local f name
+  local f name applies detail providers
   echo "包源/镜像（brook mirror <名字> 看状态；brook mirror <名字> apply 配置）："
   echo
-  printf '%-10s %-26s %-32s %s\n' "名字" "适用性" "当前状态" "可用源"
+  printf '%-12s %s\n' "NAME" "状态 · 可用源（* 为默认源）"
   for f in "$BROOK_HOME"/mirrors/*.sh; do
     [ -e "$f" ] || continue
     name="$(basename "$f" .sh)"
@@ -19,11 +19,18 @@ mirror_list() {
       # shellcheck source=/dev/null
       source "$f"
       applies="$(mirror_detect 2>/dev/null || echo '?')"
+      providers="$(printf '%s' "${MIRROR_PROVIDERS:-固定}" | sed 's/(默认)/*/g')"
       case "$applies" in
-        inapplicable*) status="-" ;;
-        *) status="$(mirror_status 2>/dev/null || echo '?')" ;;
+        inapplicable*)
+          detail="$(printf '%s' "$applies" | sed 's/^inapplicable//; s/^（//; s/）$//')"
+          detail="不适用 · ${detail:-未检测到适用条件}"
+          ;;
+        *)
+          detail="$(mirror_status 2>/dev/null || echo '?')"
+          ;;
       esac
-      printf '%-10s %-26s %-32s %s\n' "$name" "$applies" "$status" "${MIRROR_PROVIDERS:-固定}"
+      # 只有 NAME 一列定宽（名字都是 ASCII，对齐可靠）；其余中文详情走流式，不串列
+      printf '%-12s %s · 源: %s\n' "$name" "$detail" "$providers"
     )
   done
   echo
